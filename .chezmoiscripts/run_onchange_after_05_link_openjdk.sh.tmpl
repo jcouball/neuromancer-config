@@ -33,6 +33,17 @@ fi
 if [ -L "$JDK_TARGET" ] && [ "$(readlink "$JDK_TARGET")" = "$JDK_SOURCE" ]; then
   echo ">> openjdk already linked into /Library/Java/JavaVirtualMachines."
 else
+  # This step needs root. provision.sh holds a sudo timestamp open for the whole
+  # bootstrap, so it is available then -- but a bare `chezmoi apply` run later
+  # has no such thing, and sudo cannot prompt without a terminal. Say so plainly
+  # rather than letting a raw "a password is required" surface from a script the
+  # user did not know was running.
+  if ! sudo -n true 2>/dev/null && [ ! -t 0 ]; then
+    echo "❌ Linking openjdk needs sudo, and there is no terminal to prompt on." >&2
+    echo "   Run 'chezmoi apply' from an interactive shell, or 'sudo -v' first." >&2
+    exit 1
+  fi
+
   echo ">> Linking openjdk into /Library/Java/JavaVirtualMachines..."
   sudo ln -sfn "$JDK_SOURCE" "$JDK_TARGET"
 fi

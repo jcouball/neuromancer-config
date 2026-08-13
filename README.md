@@ -819,6 +819,13 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   toolchains and silently records none. If you ever start relying on `go` or
   `cargo` lines in the Brewfile, they will be quietly empty. Nothing else in the
   dump is affected — formulae, casks, taps, `vscode` and `mas` are all fine.
+- **Two provisioning scripts need sudo** — 01 (Rosetta) and 05 (linking
+  openjdk). `provision.sh` holds a sudo timestamp open for the whole bootstrap,
+  so a rebuild is unaffected. A bare `chezmoi apply` is not: run it from an
+  interactive shell, or `sudo -v` first. Both scripts now say so rather than
+  emitting a bare `sudo: a password is required` from a script you did not know
+  was running. A failed script stays pending in `chezmoi status`, so it retries
+  — it does not silently record success.
 - **`chezmoi re-add` writes to the chezmoi source directory**, which is
   `~/.local/share/chezmoi`, *not* whatever clone of this repo you happen to be
   editing in. Keeping a second working copy (say `~/github/jcouball/`) means
