@@ -13,8 +13,8 @@ nothing here needs a conditional.
 | --- | --- |
 | Host | Neuromancer — Apple M2 Max, macOS Tahoe 26.6.1 |
 | Shell | zsh + powerlevel10k |
-| Terminal | iTerm2 (settings managed) · Warp (by hand) |
-| Package manager | Homebrew — 83 formulae, 37 casks, 43 VS Code extensions, 14 App Store apps |
+| Terminal | Warp (installed by `.Brewfile`; its settings cannot be versioned) |
+| Package manager | Homebrew — 83 formulae, 37 casks, 42 VS Code extensions, 14 App Store apps |
 | Runtimes | asdf, 5 tools |
 | Rebuild | **certified** on a clean VM, except the App Store layer |
 
@@ -69,13 +69,12 @@ brew bundle --file="$HOME/.Brewfile"
 
 Afterwards, by hand — the parts a script cannot do:
 
-1. **Point iTerm2 at its managed preferences.** Preferences → General →
-   Preferences → *Load preferences from a custom folder*, set to `~/.iterm2`.
-   The plist is in this repo and lands in the right place, but the setting that
-   makes iTerm2 *read* it lives in iTerm2's own defaults and is not managed. Skip
-   this and iTerm2 works fine — just not like yours. `verify.sh` checks it.
-2. **Warp**, if you want it, and Warp's own settings, which cannot be versioned.
-3. **Sign in to 1Password** and enable its CLI integration, if you use the
+1. **Redo Warp's settings.** Warp is installed by `.Brewfile`, but it keeps its
+   configuration in a binary SQLite database with no file to version, so a
+   rebuilt machine gets the application and none of your setup. This is the
+   single largest thing a rebuild does not restore — see
+   [Deliberately not managed](#deliberately-not-managed).
+2. **Sign in to 1Password** and enable its CLI integration, if you use the
    `op`-templated files — see [Secrets](#secrets).
 
 This path is **certified** — run end to end on a clean macOS VM as a different
@@ -427,7 +426,7 @@ provision.sh                       the bootstrap; the only thing run by hand (ig
 .chezmoiignore                     keeps the four above out of the home directory
 .gitattributes                     * text=auto eol=lf
 
-dot_Brewfile                       83 formulae, 37 casks, 43 extensions, 14 App Store apps
+dot_Brewfile                       83 formulae, 37 casks, 42 extensions, 14 App Store apps
 dot_tool-versions                  the five pinned runtimes
 dot_default-npm-packages           replayed on every new Node install
 dot_asdfrc                         asdf behaviour
@@ -443,7 +442,6 @@ dot_gitconfig                      identity, editor, aliases
 dot_gitignore / dot_gitignore_global
 private_dot_ssh/private_config     SSH config; the keys themselves are not managed
 dot_config/topgrade.toml           update policy
-dot_iterm2/                        iTerm2 preferences plist
 dot_homebrew/brew.env              HOMEBREW_NO_ANALYTICS
 dot_pip/pip.conf
 empty_dot_irbrc
@@ -506,9 +504,17 @@ what runs in it.
 bash files exist because scripts and older tooling still land in bash, not
 because anything is run there interactively.
 
-**iTerm2 is the managed terminal** — its preferences plist is in this repo.
-Warp is a personal preference installed by hand; its settings live in a binary
-database and cannot be versioned.
+**Warp is the terminal.** It is declared as a cask in `.Brewfile`, so a rebuild
+installs it — but its settings live in a binary SQLite database and cannot be
+versioned, so a rebuild does not restore them.
+
+That is a real cost, and it was accepted deliberately. This repo previously
+carried an iTerm2 preferences plist, and iTerm2's settings *can* be versioned —
+which was a genuine argument for it as the primary terminal. The argument lost
+to preferring Warp day to day. What the repo cannot do is manage the settings of
+a terminal you do not use: that plist was for an application that was not
+installed and not declared anywhere, and it survived only because a stale
+`com.googlecode.iterm2` defaults domain made it look live.
 
 ### Which zsh file, and why
 
@@ -579,7 +585,7 @@ command at the top.
 
 The line is version sensitivity. If a project can break because a tool moved
 from 4.0.6 to 4.0.7, asdf owns it and it is pinned in `.tool-versions`. If it
-cannot — `ripgrep`, Chrome, iTerm2 — Homebrew owns it and topgrade may sweep it
+cannot — `ripgrep`, Chrome, Warp — Homebrew owns it and topgrade may sweep it
 forward without asking.
 
 The one place this gets subtle is Node: `.Brewfile` declares
@@ -630,7 +636,7 @@ recovery path you would only exercise under pressure.
 | `provision.sh` appended `brew shellenv` to `~/.zprofile`, which chezmoi then overwrote | the line was already in `dot_zprofile`, so the wrong code produced the right result |
 | `provision.sh` skipped the apply entirely if `~/.local/share/chezmoi` existed | a second run was never needed, because the first had never failed |
 | `wait_for_icloud_login` looped forever with no timeout | a human was always sitting there to sign in |
-| iTerm2's managed plist is deployed but iTerm2 is never told to read it | the box was ticked by hand once, in 2023, and never thought about again |
+| An iTerm2 preferences plist was managed for an application that was not installed and not declared | a leftover `com.googlecode.iterm2` defaults domain still answered `defaults read`, so the config looked live long after the app was gone |
 
 ### The one that justifies the exercise
 
@@ -757,10 +763,11 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
 ## Deliberately not managed
 
 - **Secrets and keys.** 1Password holds them; `op` reads them at render time.
-- **Warp's settings** — not by choice. Warp keeps them in a binary SQLite
-  database with no config file to version. They will not survive a rebuild and
-  must be redone by hand. iTerm2's preferences *can* be versioned, which is a
-  quiet argument for it as the primary terminal.
+- **Warp's settings** — not by choice, and the biggest gap in a rebuild. Warp
+  keeps them in a binary SQLite database with no config file to version, so the
+  application comes back and your setup does not. Nothing here can fix that; the
+  only mitigation is knowing it in advance, which is why it is step one of the
+  by-hand list in [Rebuild from nothing](#rebuild-from-nothing).
 - **VS Code settings** (as opposed to the extension list). Settings Sync owns
   those; the Brewfile owns which extensions are installed.
 - **macOS system preferences.** No `defaults write` bank here. They are

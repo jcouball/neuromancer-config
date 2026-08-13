@@ -273,29 +273,18 @@ else
       "$(script -q /dev/null zsh -ic 'exit' 2>&1 | sed $'s/\x1b\\[[0-9;]*[a-zA-Z]//g' | tr -d '\r' | grep -v '^\^D' | head -3 | tr '\n' ' ')"
 fi
 
-# --- iTerm2 ----------------------------------------------------------------
+# --- Terminal --------------------------------------------------------------
 
-section "iTerm2"
+section "Terminal"
 
-# The preferences plist is managed, but the setting that tells iTerm2 to *read*
-# it lives in iTerm2's own defaults domain and is not. A rebuilt machine gets
-# the plist and ignores it until this is ticked by hand, which is easy to miss
-# because iTerm2 looks fine -- just not like yours.
-if [ -f "$HOME/.iterm2/com.googlecode.iterm2.plist" ]; then
-  ok "~/.iterm2/com.googlecode.iterm2.plist deployed"
-
-  load_custom="$(defaults read com.googlecode.iterm2 LoadPrefsFromCustomFolder 2>/dev/null || echo 0)"
-  custom_dir="$(defaults read com.googlecode.iterm2 PrefsCustomFolder 2>/dev/null || echo '')"
-
-  if [ "$load_custom" = "1" ] && [ "$custom_dir" = "$HOME/.iterm2" ]; then
-    ok "iTerm2 is reading preferences from ~/.iterm2"
-  else
-    caution "iTerm2 is not reading the managed preferences" \
-            "set Preferences > General > Preferences > 'Load preferences from a custom folder' to ~/.iterm2"
-  fi
+if [ -d "/Applications/Warp.app" ]; then
+  ok "Warp installed"
 else
-  caution "~/.iterm2 preferences not deployed"
+  bad "Warp not installed" "declared as a cask in .Brewfile"
 fi
+
+# Warp keeps its settings in a binary SQLite database, so there is nothing to
+# verify beyond the app being present -- see "Deliberately not managed".
 
 # --- Identity --------------------------------------------------------------
 
