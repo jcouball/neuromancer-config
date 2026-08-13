@@ -14,7 +14,7 @@ nothing here needs a conditional.
 | Host | Neuromancer — Apple M2 Max, macOS Tahoe 26.6.1 |
 | Shell | zsh + powerlevel10k |
 | Terminal | Warp (installed by `.Brewfile`; its settings cannot be versioned) |
-| Package manager | Homebrew — 83 formulae, 37 casks, 42 VS Code extensions, 14 App Store apps |
+| Package manager | Homebrew — 84 formulae, 37 casks, 50 VS Code extensions, 14 App Store apps |
 | Runtimes | asdf, 5 tools |
 | Rebuild | **certified** on a clean VM, except the App Store layer |
 
@@ -426,7 +426,7 @@ provision.sh                       the bootstrap; the only thing run by hand (ig
 .chezmoiignore                     keeps the four above out of the home directory
 .gitattributes                     * text=auto eol=lf
 
-dot_Brewfile                       83 formulae, 37 casks, 42 extensions, 14 App Store apps
+dot_Brewfile                       84 formulae, 37 casks, 50 extensions, 14 App Store apps
 dot_tool-versions                  the five pinned runtimes
 dot_default-npm-packages           replayed on every new Node install
 dot_asdfrc                         asdf behaviour
@@ -688,9 +688,13 @@ result.
 One-time, and worth keeping forever: reverting costs seconds, rebuilding this
 environment costs an hour.
 
-```bash
-brew install cirruslabs/cli/tart
+tart is declared in `.Brewfile`, so a rebuilt Mac can re-certify itself without
+an undeclared prerequisite in the recovery path. The cost is that the
+certification VM installs tart too, where it is useless — Apple Silicon has no
+nested virtualization, so a VM cannot create VMs. A few unused megabytes in a
+throwaway machine is cheaper than a hole in the emergency procedure.
 
+```bash
 tart create --from-ipsw=latest neuromancer-base
 tart run neuromancer-base
 ```
@@ -795,6 +799,32 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   sign-ins, and only the second one satisfies `mas`.
 - **`brew bundle dump` rewrites the whole file.** Re-add it to chezmoi in the
   same sitting, or the next `chezmoi apply` will quietly put the old one back.
+- **`brew bundle` upgrades by default**, which is why script 02 exports
+  `HOMEBREW_BUNDLE_NO_UPGRADE=1`. Without it, a one-line Brewfile edit turned
+  `chezmoi apply` into a bulk upgrade of every outdated package — 19 of them on
+  the run that caught this, Docker Desktop and Chrome among them, while they
+  were running. Installing what is declared is layer 1's job; upgrading is
+  layer 5's. `topgrade` is how you ask for the second one.
+- **`brew bundle dump` cannot see through asdf shims.** Homebrew runs
+  subprocesses with a scrubbed `PATH` — `Library/Homebrew/shims/shared`,
+  `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin` and nothing else — so an asdf shim,
+  whose body is `exec asdf exec "go" "$@"`, cannot find `asdf`:
+
+  ```console
+  $ env -i PATH="$HOME/.asdf/shims:/usr/bin:/bin" ~/.asdf/shims/go version
+  /Users/james/.asdf/shims/go: line 6: exec: asdf: not found
+  ```
+
+  Homebrew Bundle can record `go` and `cargo` entries, so `dump` probes those
+  toolchains and silently records none. If you ever start relying on `go` or
+  `cargo` lines in the Brewfile, they will be quietly empty. Nothing else in the
+  dump is affected — formulae, casks, taps, `vscode` and `mas` are all fine.
+- **`chezmoi re-add` writes to the chezmoi source directory**, which is
+  `~/.local/share/chezmoi`, *not* whatever clone of this repo you happen to be
+  editing in. Keeping a second working copy (say `~/github/jcouball/`) means
+  `re-add` silently updates the other one, and a `git diff` where you are
+  standing shows nothing at all. `chezmoi cd` goes to the source directory, and
+  is the reason every playbook above is written that way.
 - **`--global` resolves to `~/.Brewfile` only by fallback.** Homebrew looks at
   `$HOMEBREW_BUNDLE_FILE_GLOBAL`, then `$XDG_CONFIG_HOME/homebrew/Brewfile` if
   `XDG_CONFIG_HOME` is set, then `~/.homebrew/Brewfile`, and only then

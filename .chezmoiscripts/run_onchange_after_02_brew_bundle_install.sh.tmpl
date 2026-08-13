@@ -7,15 +7,30 @@
 # package added to the Brewfile was never installed on an already-provisioned
 # machine -- the repo said one thing and the Mac did another.
 #
-# after_ because this reads ~/.Brewfile, which chezmoi has to write first.
-# Do not rely on the numeric prefix for that: chezmoi orders by ASCII of the
-# target name, and "." (0x2E) sorting before "0" (0x30) is luck, not design.
+# after_ because this reads ~/.Brewfile, which chezmoi has to write first. The
+# numeric prefix does not do that job -- it only orders the scripts relative to
+# each other. What decides script-vs-file order is the target name, and
+# ".chezmoiscripts/" (".c") sorts after ".Brewfile" (".B") but before
+# ".tool-versions" (".t"). See "Two path traps" in the README.
 #
 # .Brewfile hash: {{ include "dot_Brewfile" | sha256sum }}
 
 set -euo pipefail
 
 eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# Install what is missing; do not upgrade what is already here.
+#
+# `brew bundle` upgrades outdated packages by default, which quietly turned
+# every `chezmoi apply` into a bulk upgrade: editing one line of .Brewfile swept
+# 19 unrelated packages forward, Docker Desktop and Chrome among them, while
+# they were running. That is topgrade's job -- layer 5 owns upgrades, layer 1
+# owns declaration -- and mixing the two means you can never apply a config
+# change without also accepting whatever else happens to be outdated that day.
+#
+# To upgrade deliberately: `topgrade`, or `brew bundle --file="$HOME/.Brewfile"`
+# with this variable unset.
+export HOMEBREW_BUNDLE_NO_UPGRADE=1
 
 BREWFILE="$HOME/.Brewfile"
 [ -f "$BREWFILE" ] || { echo "❌ $BREWFILE not found." >&2; exit 1; }
