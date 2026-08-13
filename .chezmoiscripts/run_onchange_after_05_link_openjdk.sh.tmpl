@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+# Make Homebrew's openjdk visible to macOS.
+#
+# openjdk is keg-only: Homebrew installs it but never links it, because macOS
+# ships its own Java wrappers. The result is a JDK that works perfectly at
+# /opt/homebrew/opt/openjdk/bin/java and is invisible to everything else --
+# `java`, `/usr/libexec/java_home` and every tool that reads JAVA_HOME all fail
+# with "Unable to locate a Java Runtime" while a working JDK sits on disk.
+#
+# This is Homebrew's own documented remedy, from `brew info openjdk`. It is here
+# rather than in a note because a rebuild has to do it too, and because it was
+# missing for years: the hardcoded GraalVM JAVA_HOME in .zshenv failed in a
+# different way, which masked the fact that Java had never worked at all.
+#
+# Once the symlink exists, .zshenv's guarded java_home lookup finds it with no
+# further configuration.
+#
+# after_ and numbered 05 so it runs once script 02 has installed openjdk.
+#
+# .Brewfile hash: {{ include "dot_Brewfile" | sha256sum }}
+
+set -euo pipefail
+
+JDK_SOURCE="/opt/homebrew/opt/openjdk/libexec/openjdk.jdk"
+JDK_TARGET="/Library/Java/JavaVirtualMachines/openjdk.jdk"
+
+if [ ! -d "$JDK_SOURCE" ]; then
+  echo ">> Homebrew openjdk not installed; nothing to link."
+  exit 0
+fi
+
+if [ -L "$JDK_TARGET" ] && [ "$(readlink "$JDK_TARGET")" = "$JDK_SOURCE" ]; then
+  echo ">> openjdk already linked into /Library/Java/JavaVirtualMachines."
+else
+  echo ">> Linking openjdk into /Library/Java/JavaVirtualMachines..."
+  sudo ln -sfn "$JDK_SOURCE" "$JDK_TARGET"
+fi
+
+# Verify the outcome rather than the exit code. `ln` succeeding proves a symlink
+# exists, not that macOS can now find a runtime -- which is the only thing that
+# actually matters here.
+if ! /usr/libexec/java_home >/dev/null 2>&1; then
+  echo "❌ java_home still cannot find a JDK after linking." >&2
+  exit 1
+fi
+
+echo ">> java_home reports: $(/usr/libexec/java_home)"

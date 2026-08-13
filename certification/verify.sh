@@ -231,15 +231,6 @@ fi
 # terminal actually sources, and they are where the environment is set.
 login_env() { zsh -lc "printf '%s' \"\${$1:-}\"" 2>/dev/null; }
 
-java_home="$(login_env JAVA_HOME)"
-if [ -z "$java_home" ]; then
-  caution "JAVA_HOME not set in a login shell" "expected once a JDK is installed"
-elif [ -d "$java_home" ]; then
-  ok "JAVA_HOME is a real directory ($java_home)"
-else
-  bad "JAVA_HOME points at a nonexistent directory" "$java_home"
-fi
-
 login_path="$(login_env PATH)"
 case "$login_path" in
   *"/opt/homebrew/bin"*) ok "Homebrew on PATH in a login shell" ;;
@@ -271,6 +262,42 @@ if [ "${shell_noise:-1}" -le 1 ]; then
 else
   bad "interactive shell prints $shell_noise line(s) of unexpected output" \
       "$(script -q /dev/null zsh -ic 'exit' 2>&1 | sed $'s/\x1b\\[[0-9;]*[a-zA-Z]//g' | tr -d '\r' | grep -v '^\^D' | head -3 | tr '\n' ' ')"
+fi
+
+# --- Java ------------------------------------------------------------------
+
+section "Java"
+
+# Checked by running it, not by looking at variables. openjdk is keg-only, so a
+# machine can have a perfectly good JDK on disk, a JAVA_HOME that points into a
+# real directory, and still fail every `java` invocation -- which is exactly the
+# state this machine was in. Presence proves nothing; execution does.
+if brew list --versions openjdk >/dev/null 2>&1; then
+  ok "openjdk installed ($(brew list --versions openjdk | awk '{print $2}'))"
+
+  if /usr/libexec/java_home >/dev/null 2>&1; then
+    ok "java_home resolves ($(/usr/libexec/java_home))"
+  else
+    bad "java_home cannot find a JDK" \
+        "openjdk is keg-only; script 05 links it into /Library/Java/JavaVirtualMachines"
+  fi
+
+  if java -version >/dev/null 2>&1; then
+    ok "java runs ($(java -version 2>&1 | head -1))"
+  else
+    bad "java does not run" "$(java -version 2>&1 | head -1)"
+  fi
+
+  java_home="$(login_env JAVA_HOME)"
+  if [ -n "$java_home" ] && [ -x "$java_home/bin/java" ]; then
+    ok "JAVA_HOME usable in a login shell ($java_home)"
+  elif [ -n "$java_home" ]; then
+    bad "JAVA_HOME set but has no bin/java" "$java_home"
+  else
+    bad "JAVA_HOME not set in a login shell"
+  fi
+else
+  caution "openjdk not installed" "declared in .Brewfile"
 fi
 
 # --- Terminal --------------------------------------------------------------
