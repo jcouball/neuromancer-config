@@ -1,8 +1,28 @@
 #!/bin/bash
+#
+# Rosetta 2 -- needed by the handful of x86_64-only casks in .Brewfile.
+#
+# run_once_ rather than run_onchange_: Rosetta survives OS updates, so there is
+# nothing to re-trigger on. The tradeoff is that if it ever *is* removed, this
+# will not reinstall it -- see "Small gotchas" in the README.
 
-if /usr/bin/pgrep oahd >/dev/null; then
+set -euo pipefail
+
+if /usr/bin/pgrep -q oahd; then
   echo ">> Rosetta 2 is already installed."
-else
-  echo ">> Install Rosetta 2..."
-  sudo softwareupdate --install-rosetta
+  exit 0
 fi
+
+echo ">> Installing Rosetta 2..."
+
+# --agree-to-license is required. Without it softwareupdate stops on an
+# interactive licence prompt, which during an unattended provisioning run looks
+# exactly like a hang: no output, no error.
+sudo softwareupdate --install-rosetta --agree-to-license
+
+/usr/bin/pgrep -q oahd || {
+  echo "❌ Rosetta 2 install did not complete." >&2
+  exit 1
+}
+
+echo ">> Rosetta 2 installed."

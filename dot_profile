@@ -5,4 +5,7 @@ PATH="$HOME/bin:$PATH"
 # Q post block. Keep at the bottom of this file.
 [[ -f "${HOME}/Library/Application Support/amazon-q/shell/profile.post.bash" ]] && builtin source "${HOME}/Library/Application Support/amazon-q/shell/profile.post.bash"
 
-. "$HOME/.cargo/env"
+# Guarded: Rust arrives via asdf during provisioning, so this file is written
+# before ~/.cargo/env exists. Unguarded, it errored on every login on a machine
+# that had not finished being set up.
+[[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"

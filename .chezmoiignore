@@ -1,4 +1,13 @@
+# Source files that must never be deployed to the home directory.
+#
+# Anything in the source root without a leading dot becomes a target: without
+# these lines chezmoi would write ~/README.md, ~/provision.sh and a whole
+# ~/certification directory. Dot-prefixed source entries (.gitattributes,
+# .chezmoiscripts) are ignored by chezmoi automatically.
+
 **/*.plist.base
 bootstrap.sh
+certification
 LICENSE.txt
 provision.sh
+README.md

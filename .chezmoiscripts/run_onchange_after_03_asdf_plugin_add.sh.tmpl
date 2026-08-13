@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# Add the asdf plugins for every tool declared in .tool-versions.
+#
+# The plugin list is derived from .tool-versions rather than hardcoded here.
+# Two hardcoded lists that must agree is one list too many: adding a tool to
+# .tool-versions used to require remembering to edit this script too, and
+# forgetting produced a "plugin not installed" failure at install time.
+#
+# after_ because this reads ~/.tool-versions.
+#
+# .tool-versions hash: {{ include "dot_tool-versions" | sha256sum }}
+
+set -euo pipefail
+
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# asdf 0.16 replaced the shell-function implementation with a Go binary. There
+# is no longer a libexec/asdf.sh to source -- sourcing it was a silent no-op
+# that only appeared to work because brew put asdf on PATH anyway.
+export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
+export PATH="$ASDF_DATA_DIR/shims:$PATH"
+
+command -v asdf >/dev/null 2>&1 || { echo "❌ asdf not on PATH." >&2; exit 1; }
+
+TOOL_VERSIONS="$HOME/.tool-versions"
+[ -f "$TOOL_VERSIONS" ] || { echo "❌ $TOOL_VERSIONS not found." >&2; exit 1; }
+
+installed=$(asdf plugin list 2>/dev/null || true)
+
+while read -r plugin _; do
+  case "$plugin" in
+    ''|\#*) continue ;;
+  esac
+
+  if printf '%s\n' "$installed" | grep -qx "$plugin"; then
+    echo ">> asdf plugin already present: $plugin"
+  else
+    echo ">> Adding asdf plugin: $plugin"
+    asdf plugin add "$plugin"
+  fi
+done < "$TOOL_VERSIONS"

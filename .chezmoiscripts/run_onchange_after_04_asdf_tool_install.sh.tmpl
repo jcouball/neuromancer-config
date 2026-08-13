@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# Materialise the runtime versions pinned in .tool-versions.
+#
+# after_ is load-bearing, not stylistic. If this runs before chezmoi has written
+# ~/.tool-versions, asdf reads no configuration, finds nothing to install, and
+# exits 0 reporting success -- leaving the machine with no Ruby, no Node and no
+# Go, and a provisioning run that looked completely clean. That exact failure is
+# what justified certifying sophon-config. Hence the verification at the bottom:
+# a zero exit code from asdf proves nothing on its own.
+#
+# .tool-versions hash: {{ include "dot_tool-versions" | sha256sum }}
+
+set -euo pipefail
+
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
+export PATH="$ASDF_DATA_DIR/shims:$PATH"
+
+command -v asdf >/dev/null 2>&1 || { echo "❌ asdf not on PATH." >&2; exit 1; }
+
+TOOL_VERSIONS="$HOME/.tool-versions"
+[ -f "$TOOL_VERSIONS" ] || {
+  echo "❌ $TOOL_VERSIONS not found -- refusing to report success." >&2
+  exit 1
+}
+
+expected=$(grep -c '^[^[:space:]#]' "$TOOL_VERSIONS" || true)
+echo ">> Installing $expected tools from .tool-versions..."
+asdf install
+
+# Verify the outcome, not the exit code.
+echo ">> Verifying installed versions..."
+asdf current
+
+missing=$(asdf current 2>/dev/null | awk 'NR > 1 && $NF != "true" { print $1 }')
+
+if [ -n "$missing" ]; then
+  echo "❌ These tools are declared but not installed:" >&2
+  printf '%s\n' "$missing" | sed 's/^/     /' >&2
+  exit 1
+fi
+
+echo ">> All $expected tools installed."

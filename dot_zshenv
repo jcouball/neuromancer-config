@@ -3,7 +3,15 @@ if [ -x /usr/libexec/path_helper ]; then
     eval `/usr/libexec/path_helper -s`
 fi
 
-# export JAVA_HOME=$(/usr/libexec/java_home)
-export JAVA_HOME="/Library/Java/JavaVirtualMachines/graalvm-ce-java19-22.3.0/Contents/Home"
-export PATH="/Library/Java/JavaVirtualMachines/graalvm-ce-java19-22.3.0/Contents/Home/bin:$PATH"
+# Java. Resolved through java_home rather than hardcoded: the previous value
+# pointed at a GraalVM install that no longer exists -- /Library/Java is not
+# even present on this machine -- so every shell exported a dead JAVA_HOME and
+# prepended a nonexistent directory to PATH. java_home reports whichever JDK is
+# actually installed (Homebrew's openjdk, per .Brewfile), and the guard makes
+# this a no-op on a machine that has none yet, such as one mid-provisioning.
+if /usr/libexec/java_home >/dev/null 2>&1; then
+  JAVA_HOME="$(/usr/libexec/java_home)"
+  export JAVA_HOME
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
 

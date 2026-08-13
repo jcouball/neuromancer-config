@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+# Install everything declared in .Brewfile.
+#
+# run_onchange_ keyed on the hash below, so editing .Brewfile re-applies it.
+# The previous run_once_ version could never run a second time, which meant a
+# package added to the Brewfile was never installed on an already-provisioned
+# machine -- the repo said one thing and the Mac did another.
+#
+# after_ because this reads ~/.Brewfile, which chezmoi has to write first.
+# Do not rely on the numeric prefix for that: chezmoi orders by ASCII of the
+# target name, and "." (0x2E) sorting before "0" (0x30) is luck, not design.
+#
+# .Brewfile hash: {{ include "dot_Brewfile" | sha256sum }}
+
+set -euo pipefail
+
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+BREWFILE="$HOME/.Brewfile"
+[ -f "$BREWFILE" ] || { echo "❌ $BREWFILE not found." >&2; exit 1; }
+
+# Mac App Store entries are handled separately from everything else.
+#
+# HOMEBREW_BUNDLE_MAS_SKIP is a space-separated list matched against an entry's
+# name *or* its numeric id (Homebrew's bundle/skipper.rb handles the ids
+# specifically because App Store names contain spaces). Deriving the ids from
+# the Brewfile means there is no second list to drift out of sync.
+mas_ids=$(awk -F'id:' '/^mas /{gsub(/[^0-9]/, "", $2); if ($2 != "") print $2}' "$BREWFILE" | tr '\n' ' ')
+mas_count=$(printf '%s' "$mas_ids" | wc -w | tr -d ' ')
+
+# Pass 1: taps, formulae, casks and VS Code extensions. This must succeed.
+echo ">> Installing from Brewfile (excluding $mas_count Mac App Store apps)..."
+HOMEBREW_BUNDLE_MAS_SKIP="$mas_ids" brew bundle --file="$BREWFILE"
+
+# Pass 2: the Mac App Store apps.
+#
+# Split out because they are the one part that cannot always succeed: `mas`
+# needs the App Store to be signed in, and inside an Apple Silicon VM that is
+# impossible -- Virtualization.framework does not support App Store sign-in at
+# all. A failure here must not abort provisioning, because everything that
+# actually matters for development was already installed by pass 1.
+if [ "${SKIP_MAS:-0}" = "1" ]; then
+  echo ">> SKIP_MAS=1: skipping the $mas_count Mac App Store apps."
+  exit 0
+fi
+
+if [ "$mas_count" -eq 0 ]; then
+  exit 0
+fi
+
+echo ">> Installing $mas_count Mac App Store apps..."
+if brew bundle --file="$BREWFILE"; then
+  echo ">> Mac App Store apps installed."
+else
+  echo "!! Some Mac App Store apps did not install." >&2
+  echo "!! Usually this means the App Store is not signed in. Sign in, then:" >&2
+  echo "!!   brew bundle --file=\"\$HOME/.Brewfile\"" >&2
+  echo "!! Inside a VM this is expected and cannot be fixed -- see the" >&2
+  echo "!! Certification section of the README." >&2
+fi

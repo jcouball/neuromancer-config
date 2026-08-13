@@ -8,14 +8,22 @@ fi
 # Add ~/bin to PATH
 export PATH="$HOME/bin:$PATH"
 
-# Setup Homebrew environment
-eval "$(/opt/homebrew/bin/brew shellenv)"
+# Setup Homebrew environment. Guarded so a shell opened partway through a first
+# provisioning run, before Homebrew exists, does not error on every start.
+[[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
 # Load Cargo (Rust) environment if installed
 [[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 
-# Set SDKROOT for TruffleRuby or macOS builds
-export SDKROOT="$(xcrun --show-sdk-path)"
+# Set SDKROOT for TruffleRuby or macOS builds.
+#
+# Guarded because this runs on every shell start: if the Command Line Tools are
+# missing, mid-install, or unregistered after a macOS upgrade, an unguarded
+# xcrun prints an error into every new terminal you open.
+if xcrun --show-sdk-path >/dev/null 2>&1; then
+  SDKROOT="$(xcrun --show-sdk-path)"
+  export SDKROOT
+fi
 
 # Initialize completions
 autoload -Uz compinit
@@ -31,11 +39,15 @@ setopt share_history
 # Powerlevel10k instant prompt config (optional, speeds up prompt)
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-source /opt/homebrew/opt/powerlevel10k/share/powerlevel10k/powerlevel10k.zsh-theme
+# Guarded: chezmoi writes this file before Homebrew has installed powerlevel10k,
+# so during a first provisioning run the theme genuinely is not there yet.
+P10K_THEME=/opt/homebrew/opt/powerlevel10k/share/powerlevel10k/powerlevel10k.zsh-theme
+[[ -r "$P10K_THEME" ]] && source "$P10K_THEME"
+unset P10K_THEME
 
 # Git prompt using vcs_info
 autoload -Uz vcs_info
-precmd() { vcs_info }
+precmd() { vcs_info; }
 zstyle ':vcs_info:git:*' formats ' (%b)'
 zstyle ':vcs_info:*' enable git
 
