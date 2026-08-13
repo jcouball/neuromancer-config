@@ -696,19 +696,36 @@ throwaway machine is cheaper than a hole in the emergency procedure.
 
 ```bash
 tart create --from-ipsw=latest neuromancer-base
+
+# tart's defaults are 4 CPU / 4 GB / 50 GB, and the OS install alone takes
+# 22 GB of that. Ruby and Python compile from source and there are 37 casks to
+# unpack, so the default disk fails partway through -- for reasons that have
+# nothing to do with whether the repo works. Resize before the first boot.
+# The disk is sparse: 100 GB costs nothing until it is used, and can only ever
+# be grown, never shrunk.
+tart set neuromancer-base --cpu 6 --memory 8192 --disk-size 100 --display 1920x1080
+
+# A dedicated, passphrase-less key. Passphrase-less because certify.sh runs
+# unattended over BatchMode SSH; dedicated because the alternative is giving a
+# throwaway VM a key that also opens something real.
+ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519_neuromancer_cert \
+  -C 'neuromancer-config certification VM'
+
 tart run neuromancer-base
 ```
 
 Then, inside the VM, once:
 
-1. Complete Setup Assistant. **Use a different account name than `james`** —
-   several of the defects above are only visible to a user who is not you, and
-   `.gitconfig` in particular was broken for everyone else.
-2. Enable **Remote Login** (System Settings → General → Sharing) so `certify.sh`
-   can drive it.
-3. Add this host's public key to the VM's `~/.ssh/authorized_keys`.
-4. Give that user passwordless sudo — `provision.sh --unattended` requires it,
-   and this is a disposable machine:
+1. Complete Setup Assistant. **Use `certuser`, not `james`** — several of the
+   defects above are only visible to a user who is not you, and `.gitconfig` in
+   particular was broken for every other account. `certify.sh` expects that
+   name; override with `CERT_USER` if you pick another.
+2. Enable **Remote Login** (System Settings → General → Sharing → Remote Login)
+   so `certify.sh` can drive it.
+3. Add the host's public key to the VM's `~/.ssh/authorized_keys` — the contents
+   of `~/.ssh/id_ed25519_neuromancer_cert.pub` on this Mac.
+4. Give that user passwordless sudo. `provision.sh --unattended` requires it,
+   and two provisioning scripts need root; this is a disposable machine:
    `echo "certuser ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/certuser`
 5. Shut down, and **never boot `neuromancer-base` again.** `certify.sh` clones
    it; booting the base itself lets it drift, at which point it is no longer a

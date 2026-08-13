@@ -34,6 +34,10 @@ set -euo pipefail
 BASE_VM="${BASE_VM:-neuromancer-base}"
 CERT_VM="${CERT_VM:-neuromancer-cert}"
 CERT_USER="${CERT_USER:-certuser}"
+# A dedicated, passphrase-less key. Passphrase-less because certify.sh runs
+# unattended over BatchMode SSH; dedicated because the alternative is handing a
+# throwaway VM a key that also opens something real.
+CERT_SSH_KEY="${CERT_SSH_KEY:-$HOME/.ssh/id_ed25519_neuromancer_cert}"
 REPO="${NEUROMANCER_CONFIG_REPO:-jcouball/neuromancer-config}"
 BRANCH="${BRANCH:-main}"
 BOOT_TIMEOUT="${BOOT_TIMEOUT:-300}"
@@ -61,7 +65,12 @@ die()  { printf '\033[31m❌ %s\033[0m\n' "$*" >&2; exit 1; }
 # --- Preflight -------------------------------------------------------------
 
 command -v tart >/dev/null 2>&1 \
-  || die "tart not found. Install it: brew install cirruslabs/cli/tart"
+  || die "tart not found. It is declared in .Brewfile: brew bundle --global"
+
+[ -f "$CERT_SSH_KEY" ] \
+  || die "No certification SSH key at $CERT_SSH_KEY.
+     Create one:  ssh-keygen -t ed25519 -N '' -f $CERT_SSH_KEY
+     then add $CERT_SSH_KEY.pub to ~$CERT_USER/.ssh/authorized_keys in the base VM."
 
 if [ "$VERIFY_ONLY" -eq 0 ]; then
   tart list --format json | grep -q "\"$BASE_VM\"" \
@@ -77,8 +86,9 @@ wait_for_ssh() {
   log "Waiting for the VM to boot and accept SSH (up to ${BOOT_TIMEOUT}s)..."
   while [ "$waited" -lt "$BOOT_TIMEOUT" ]; do
     ip="$(vm_ip)"
-    if [ -n "$ip" ] && ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no \
-        -o UserKnownHostsFile=/dev/null -o BatchMode=yes \
+    if [ -n "$ip" ] && ssh -i "$CERT_SSH_KEY" -o ConnectTimeout=5 \
+        -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -o IdentitiesOnly=yes -o BatchMode=yes \
         "$CERT_USER@$ip" true 2>/dev/null; then
       echo "$ip"
       return 0
@@ -96,7 +106,8 @@ wait_for_ssh() {
 # Host keys change with every clone, so they are deliberately not verified.
 # This is a disposable VM on a local network, reachable only from this Mac.
 guest() {
-  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+  ssh -i "$CERT_SSH_KEY" -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes \
       -o LogLevel=ERROR "$CERT_USER@$IP" "$@"
 }
 
@@ -170,7 +181,7 @@ cat <<EOF
 
 The VM is still running so you can inspect it:
 
-  ssh $CERT_USER@$IP
+  ssh -i $CERT_SSH_KEY $CERT_USER@$IP
   tart delete $CERT_VM      # when you are done
 
 Record anything this found in the Certification section of the README. A defect
