@@ -681,9 +681,13 @@ throwaway macOS VM, as a user who is not `james`.
 | | |
 | --- | --- |
 | Date | 2026-08-14 |
-| Commit | `4a2974c` |
+| Commit | `6ed8da6` |
 | Guest | macOS Tahoe 26.6.1, 6 CPU / 8 GB / 100 GB, user `certuser` |
-| Result | **40 passed, 0 failed, 2 warnings** |
+| Result | **41 passed, 0 failed, 2 warnings** |
+
+Certified twice: first at `4a2974c` (40/0/2), then again at `6ed8da6` after
+`verify.sh` gained the by-name and undeclared-extension checks — a tightened
+check invalidates the badge, so the second run is the one that counts.
 
 The warnings are the three things an Apple Silicon VM structurally cannot do —
 the 14 App Store apps, `zoom`, and `postgresql@17`'s service — each named
@@ -796,13 +800,22 @@ exactly, which is the point: versions matter for the runtimes a project builds
 against, and not for `ripgrep`. A rebuild next month gives a working machine
 with different bytes, and that is the intended trade.
 
-**Parallel installs race, and which ones race is luck.** The certified run had
-five entries fail the parallel pass — `postgresql@17`, `shellcheck`,
-`tyriar.sort-lines`, `usernamehw.errorlens`, `vscjava.vscode-java-test` — and
-four installed cleanly on the serial retry. A different run collides on a
-different set. The retry turns a random failure into a random slowdown; it does
-not make the first pass deterministic, and two collisions on the same entry in
-a row remain possible.
+**Parallel installs race, and which ones race is luck.** Two certified runs,
+five first-pass failures each, and almost entirely different sets:
+
+| Run | Failed the parallel pass |
+| --- | --- |
+| `4a2974c` | `postgresql@17`, `shellcheck`, `tyriar.sort-lines`, `usernamehw.errorlens`, `vscjava.vscode-java-test` |
+| `6ed8da6` | `postgresql@17`, `shellcheck`, `@github/copilot`, `ms-vscode-remote.remote-containers`, `ms-vscode.extension-test-runner` |
+
+Both times every entry except `postgresql@17` installed cleanly on the serial
+retry. `postgresql@17` is the structural VM limitation, not a race. The retry
+turns a random failure into a random slowdown; it does not make the first pass
+deterministic, and two collisions on the same entry in a row remain possible.
+
+Note that `shellcheck` appears in both — a plain formula with no extension pack
+in sight, which is the clearest evidence that packs are not the cause and
+removing them would not have helped.
 
 **The network is a dependency.** Homebrew's installer, the git clone, 121
 downloads and the asdf plugin clones all have to succeed. Only `brew bundle`
