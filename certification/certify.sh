@@ -147,6 +147,19 @@ IP="$(wait_for_ssh)"
 echo
 log "VM reachable at $IP"
 
+# Fail fast on a disk that cannot finish the job. Run 3 spent twenty minutes
+# downloading before Homebrew ran out of space and reported it as 113 failed
+# package installs -- a diagnosis that took longer than the run. The number was
+# knowable in the first second.
+AVAIL_GB="$(guest 'df -g / | awk "NR==2{print \$4}"' 2>/dev/null || echo 0)"
+log "Guest has ${AVAIL_GB} GB free."
+if [ "${AVAIL_GB:-0}" -lt 45 ]; then
+  die "Only ${AVAIL_GB} GB free in the guest; the Brewfile needs roughly 35-40.
+     Disk size can only be set when the VM is created:
+       tart delete $BASE_VM
+       tart create --from-ipsw=latest --disk-size 100 $BASE_VM"
+fi
+
 # --- Run the bootstrap -----------------------------------------------------
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
