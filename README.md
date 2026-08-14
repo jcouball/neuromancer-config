@@ -14,7 +14,7 @@ nothing here needs a conditional.
 | Host | Neuromancer — Apple M2 Max, macOS Tahoe 26.6.1 |
 | Shell | zsh + powerlevel10k |
 | Terminal | Warp (installed by `.Brewfile`; its settings cannot be versioned) |
-| Package manager | Homebrew — 84 formulae, 37 casks, 50 VS Code extensions, 14 App Store apps |
+| Package manager | Homebrew — 84 formulae, 37 casks, 49 VS Code extensions, 14 App Store apps |
 | Runtimes | asdf, 5 tools |
 | Rebuild | **not yet certified** — the harness works; a clean run has not passed |
 
@@ -450,7 +450,7 @@ LICENSE.txt                        MIT (ignored)
 .chezmoiignore                     keeps the four above out of the home directory
 .gitattributes                     * text=auto eol=lf
 
-dot_Brewfile                       84 formulae, 37 casks, 50 extensions, 14 App Store apps
+dot_Brewfile                       84 formulae, 37 casks, 49 extensions, 14 App Store apps
 dot_tool-versions                  the five pinned runtimes
 dot_default-npm-packages           replayed on every new Node install
 dot_asdfrc                         asdf behaviour
@@ -943,6 +943,18 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   sign-ins, and only the second one satisfies `mas`.
 - **`brew bundle dump` rewrites the whole file.** Re-add it to chezmoi in the
   same sitting, or the next `chezmoi apply` will quietly put the old one back.
+- **VS Code extension packs are always double-declared, and can race.** A pack
+  installs its members, `brew bundle dump` records everything installed, so the
+  pack *and* each member end up in `.Brewfile`. `brew bundle` then installs in
+  parallel and two processes can unpack the same extension into the same
+  directory, failing with `ENOTEMPTY: directory not empty`. This is structural,
+  not a mistake to be tidied away: `vscjava.vscode-java-pack` declares six of
+  its own members, and all six are wanted. Script 02 retries once with
+  `HOMEBREW_BUNDLE_JOBS=1`, which cannot collide.
+- **Uninstalling a pack uninstalls its members too.** Removing
+  `vscode-remote-extensionpack` also removed `remote-containers` and
+  `remote-server`, which had to be reinstalled. Check `code --list-extensions`
+  after removing any pack.
 - **`brew bundle` upgrades by default**, which is why script 02 exports
   `HOMEBREW_BUNDLE_NO_UPGRADE=1`. Without it, a one-line Brewfile edit turned
   `chezmoi apply` into a bulk upgrade of every outdated package — 19 of them on
