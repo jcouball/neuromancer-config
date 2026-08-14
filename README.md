@@ -703,7 +703,12 @@ tart create --from-ipsw=latest neuromancer-base
 # nothing to do with whether the repo works. Resize before the first boot.
 # The disk is sparse: 100 GB costs nothing until it is used, and can only ever
 # be grown, never shrunk.
-tart set neuromancer-base --cpu 6 --memory 8192 --disk-size 100 --display 1920x1080
+# --display units are POINTS for macOS guests, not pixels, so 1920x1080 is a
+# logical display larger than a 14" MacBook Pro's own screen and the window will
+# not fit. 1280x800 fits any laptop; --display-refit then lets the guest follow
+# the window as you resize it.
+tart set neuromancer-base --cpu 6 --memory 8192 --disk-size 100 \
+                          --display 1280x800 --display-refit
 
 # A dedicated, passphrase-less key. Passphrase-less because certify.sh runs
 # unattended over BatchMode SSH; dedicated because the alternative is giving a
@@ -745,6 +750,11 @@ does not have.
 Then **shut down and never boot `neuromancer-base` again.** `certify.sh` clones
 it; booting the base itself lets it drift, at which point it is no longer a
 clean machine.
+
+Display changes only take effect at the next boot — `tart set` accepts them on a
+running VM and exits zero, which looks like it worked. To resize a VM that is
+already running, change the resolution inside the guest instead: System Settings
+→ Displays.
 
 ### Why not copy and paste
 
