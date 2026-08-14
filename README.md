@@ -794,6 +794,7 @@ runs on.
 | **FileVault** | **No** | Not merely unnecessary — it *breaks the harness*. FileVault requires pre-boot authentication, and `certify.sh` boots the clone with `--no-graphics` and waits for SSH. An encrypted guest sits at an unlock screen nobody can type into, never brings up the network, and times out every run. On a real Mac, turn it on. |
 | **Location Services** | No | Nothing in the Brewfile or the scripts uses it. Declining means macOS asks for a time zone by hand — **set it correctly**. Every step of the bootstrap is an HTTPS download, and a badly wrong clock fails TLS validation with certificate errors rather than anything that says "your clock is wrong". `sudo sntp -sS time.apple.com` fixes it after the fact. |
 | **Apple ID** | No | The App Store cannot be signed into in a VM at all, and iCloud has nothing to sync here. |
+| **Automatic updates** | No | The base image must be a *fixed* macOS version. If it updates itself, a failing run might be failing because macOS moved rather than because the repo did — and the clean image you revert to is no longer the one you certified against. Clones inherit the setting too, so a run could pull a multi-gigabyte OS update while competing for the same disk and bandwidth as 121 packages. On the real Mac, topgrade's `system` step does this deliberately instead. |
 | **Siri, analytics, Screen Time, Apple Pay, Find My** | No | Background services that add noise and state, and buy nothing. |
 
 Everything after that is one command, because typing into a VM window is
