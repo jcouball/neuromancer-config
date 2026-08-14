@@ -19,6 +19,11 @@
 
 set -euo pipefail
 
+# chezmoi renders the template below before bash ever sees this file, so the
+# braces are not shell syntax. Every other script here keeps its templating
+# inside comments, which shellcheck ignores; this one cannot, because the value
+# is the whole point of the script.
+# shellcheck disable=SC1083
 WANT={{ .computerName | quote }}
 
 [ -n "$WANT" ] || { echo ">> No computer name configured; skipping."; exit 0; }
