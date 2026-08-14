@@ -95,7 +95,7 @@ chmod 600 "$HOME/.ssh/authorized_keys"
 # --- Passwordless sudo -----------------------------------------------------
 
 log "Granting passwordless sudo to $USER..."
-echo "   Unattended provisioning requires it, and two chezmoi scripts need root."
+echo "   Unattended provisioning requires it, and three chezmoi scripts need root."
 
 if sudo -n true 2>/dev/null && [ -f "/etc/sudoers.d/$USER" ]; then
   echo "   Already configured."

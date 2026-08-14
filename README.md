@@ -331,6 +331,14 @@ script, a new package manager, a change to `.chezmoi.toml.tmpl`, a renamed repo,
 or a major macOS upgrade. Not needed for adding a package or bumping a runtime —
 those exercise proven ground.
 
+**Also re-certify when `verify.sh` gets stricter.** A tightened check invalidates
+the badge exactly as surely as a changed script, because the previous run passed
+a test that no longer exists. This is easy to miss: nothing about the machine
+changed, so it does not feel like a change at all. It happened immediately after
+the first certified run — the VS Code check moved from comparing totals to
+checking each declared extension by name, and the certified run had never been
+asked that question.
+
 ```bash
 ./certification/certify.sh
 ```
