@@ -747,6 +747,45 @@ copied to the guest and run as a file, so nothing can consume it. And it prints
 dies partway through can no longer be mistaken for a clean one. **A zero exit is
 not evidence; positive proof of completion is.**
 
+### What is not deterministic
+
+A certified run proves the **procedure** works. It does not promise the next
+rebuild produces the same machine, and it is worth being clear about why.
+
+**Almost nothing is version-pinned.** Two entries in `.Brewfile` carry a version
+in the formula *name* — `openssl@3`, `postgresql@17` — and that is all. The
+other 119 install whatever is current on the day. Only `.tool-versions` pins
+exactly, which is the point: versions matter for the runtimes a project builds
+against, and not for `ripgrep`. A rebuild next month gives a working machine
+with different bytes, and that is the intended trade.
+
+**Parallel installs race, and which ones race is luck.** The certified run had
+five entries fail the parallel pass — `postgresql@17`, `shellcheck`,
+`tyriar.sort-lines`, `usernamehw.errorlens`, `vscjava.vscode-java-test` — and
+four installed cleanly on the serial retry. A different run collides on a
+different set. The retry turns a random failure into a random slowdown; it does
+not make the first pass deterministic, and two collisions on the same entry in
+a row remain possible.
+
+**The network is a dependency.** Homebrew's installer, the git clone, 121
+downloads and the asdf plugin clones all have to succeed. Only `brew bundle`
+retries. asdf plugins are cloned at HEAD, so plugin code itself changes between
+runs.
+
+**`--from-ipsw=latest` moves.** The base image is fixed once built — never
+booted, automatic updates declined — but rebuilding it later gets a different
+macOS. Record which IPSW a base image was built from if that matters.
+
+What *is* deterministic, and deliberately so: script ordering (explicit
+`after_`, not luck), the base image itself, `run_once` state (every run is a
+fresh clone), and the Rosetta check (`arch -x86_64`, which tests behaviour
+rather than a daemon that comes and goes).
+
+The practical consequence: **certification has a shelf life.** It says the
+procedure worked against the world as it was that day. That is why
+re-certification is triggered by changes to the bootstrap path *and* by a major
+macOS upgrade — the ground moves underneath a claim that was true when made.
+
 ### What certification cannot cover
 
 **The Mac App Store cannot be signed into inside a VM.** This is a restriction

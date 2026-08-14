@@ -208,12 +208,30 @@ fi
 section "VS Code"
 
 if command -v code >/dev/null 2>&1; then
-  declared=$(grep -c '^vscode ' "$BREWFILE" 2>/dev/null || echo 0)
-  installed=$(code --list-extensions 2>/dev/null | grep -c . || echo 0)
-  if [ "$installed" -ge "$declared" ]; then
-    ok "$installed extensions installed ($declared declared)"
+  # Check each declared extension individually, not the count.
+  #
+  # Comparing totals was worthless: extensions pulled in as dependencies of
+  # packs inflate the number, so 53 installed against 50 declared "passed"
+  # while saying nothing about *which* 53. Ten declared extensions could be
+  # missing and thirteen dependencies present, and the count would still look
+  # healthy. Names, not arithmetic.
+  installed_list="$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  declared_n=0
+  missing_ext=""
+  while IFS= read -r ext; do
+    [ -n "$ext" ] || continue
+    declared_n=$((declared_n + 1))
+    printf '%s\n' "$installed_list" | grep -qxF "$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')" \
+      || missing_ext="$missing_ext  $ext"
+  done <<EOF
+$(sed -n 's/^vscode "\([^"]*\)".*/\1/p' "$BREWFILE")
+EOF
+
+  installed_n="$(printf '%s\n' "$installed_list" | grep -c . || true)"
+  if [ -z "$missing_ext" ]; then
+    ok "all $declared_n declared extensions installed ($installed_n present in total)"
   else
-    bad "$installed extensions installed, $declared declared"
+    bad "declared extensions missing:$missing_ext"
   fi
 else
   bad "code CLI not on PATH" "the visual-studio-code cask should provide it"
