@@ -714,22 +714,46 @@ ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519_neuromancer_cert \
 tart run neuromancer-base
 ```
 
-Then, inside the VM, once:
+Complete Setup Assistant, naming the account **`certuser`, not `james`** —
+several of the defects above are only visible to a user who is not you, and
+`.gitconfig` was broken for every other account for years. `certify.sh` expects
+that name; override with `CERT_USER` if you pick another. Skip the Apple ID:
+the App Store will not work in a VM regardless.
 
-1. Complete Setup Assistant. **Use `certuser`, not `james`** — several of the
-   defects above are only visible to a user who is not you, and `.gitconfig` in
-   particular was broken for every other account. `certify.sh` expects that
-   name; override with `CERT_USER` if you pick another.
-2. Enable **Remote Login** (System Settings → General → Sharing → Remote Login)
-   so `certify.sh` can drive it.
-3. Add the host's public key to the VM's `~/.ssh/authorized_keys` — the contents
-   of `~/.ssh/id_ed25519_neuromancer_cert.pub` on this Mac.
-4. Give that user passwordless sudo. `provision.sh --unattended` requires it,
-   and two provisioning scripts need root; this is a disposable machine:
-   `echo "certuser ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/certuser`
-5. Shut down, and **never boot `neuromancer-base` again.** `certify.sh` clones
-   it; booting the base itself lets it drift, at which point it is no longer a
-   clean machine.
+Everything after that is one command, because typing into a VM window is
+miserable and error-prone. Boot the base image with this repo's
+`certification/` directory shared in:
+
+```bash
+cp ~/.ssh/id_ed25519_neuromancer_cert.pub certification/
+tart run --dir=cert:"$PWD/certification":ro neuromancer-base
+```
+
+Then, in the VM's Terminal:
+
+```bash
+"/Volumes/My Shared Files/cert/prepare-base-vm.sh"
+```
+
+That installs the public key, grants passwordless sudo, and turns on Remote
+Login — the three things `certify.sh` needs to drive the VM unattended, none of
+which are part of the rebuild being certified. It verifies each one rather than
+assuming, and stops if Remote Login needs the GUI toggle, which it does on a
+fresh install: `systemsetup` requires Full Disk Access that a new Terminal.app
+does not have.
+
+Then **shut down and never boot `neuromancer-base` again.** `certify.sh` clones
+it; booting the base itself lets it drift, at which point it is no longer a
+clean machine.
+
+### Why not copy and paste
+
+tart does support clipboard sharing, but on a macOS guest it requires
+`tart-guest-agent` installed *inside* the VM — which is itself something you
+would have to get in there first. The directory share above works from first
+boot with no agent, no networking and no clipboard. `tart run --vnc` is the
+other option: Screen Sharing supports copy and paste, but it needs Remote Login
+already on, so it cannot help with the step that turns Remote Login on.
 
 Apple's licence permits two macOS VMs on a Mac host. The clone is APFS
 copy-on-write, so it costs seconds and almost no disk.

@@ -1,1 +1,6 @@
 logs/
+
+# The certification public key is copied in here so the guest can reach it over
+# tart's directory share. It is host-specific and regenerable, so it is not
+# committed -- prepare-base-vm.sh tells you the one command to put it back.
+*.pub
