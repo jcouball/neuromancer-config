@@ -230,6 +230,35 @@ Homebrew's Brewfile records VS Code extensions as `vscode` lines, so they are
 part of the same snapshot as everything else. **Do not also enable Settings
 Sync for extensions** — two managers, one list, no arbiter.
 
+#### An extension appeared that you did not declare
+
+`verify.sh` warns when something is installed that `.Brewfile` does not list.
+Usually it means an extension pack gained a member upstream, or an extension
+pulled in a dependency. Decide which you want, then make the repo agree:
+
+```bash
+# adopt it
+brew bundle dump --global --force
+chezmoi re-add ~/.Brewfile
+chezmoi cd; git commit -am "Adopt <name>"; git push
+
+# or refuse it
+code --uninstall-extension <publisher.name>
+```
+
+This is not a new chore — it is the same "the repo must never lag the machine"
+rule as everywhere else. The check exists only so you find out on your schedule
+rather than during a rebuild. It rides along with `verify.sh`, which the cadence
+table already puts at monthly.
+
+**Keeping extension packs is fine.** `vscjava.vscode-java-pack` declares six
+members and all six are wanted; dropping it would mean uninstalling it — which
+takes its members with it — and reinstalling each by hand to arrive at the same
+six extensions without upstream curation. Packs are not what causes the install
+races either: the certified run collided on `shellcheck`, a plain formula. The
+only real hazard is a pack quietly gaining a member, and that is exactly what
+this check catches.
+
 ### chezmoi
 
 #### Change a managed config

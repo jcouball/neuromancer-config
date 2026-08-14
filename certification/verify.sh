@@ -215,23 +215,44 @@ if command -v code >/dev/null 2>&1; then
   # while saying nothing about *which* 53. Ten declared extensions could be
   # missing and thirteen dependencies present, and the count would still look
   # healthy. Names, not arithmetic.
-  installed_list="$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]')"
-  declared_n=0
-  missing_ext=""
-  while IFS= read -r ext; do
-    [ -n "$ext" ] || continue
-    declared_n=$((declared_n + 1))
-    printf '%s\n' "$installed_list" | grep -qxF "$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')" \
-      || missing_ext="$missing_ext  $ext"
-  done <<EOF
-$(sed -n 's/^vscode "\([^"]*\)".*/\1/p' "$BREWFILE")
-EOF
+  # Both lists are built ONCE, before either loop.
+  #
+  # An earlier version ran the `sed` that builds the declared list inline inside
+  # the comparison pipeline, inside a `while read` loop fed by a heredoc. That
+  # reported sixteen perfectly ordinary extensions as undeclared. Hoisting the
+  # substitution into a variable fixed it. Whatever the precise interaction, the
+  # lesson is cheap: build your lists first, compare second.
+  installed_list="$(code --list-extensions 2>/dev/null | tr '[:upper:]' '[:lower:]' | sort)"
+  declared_list="$(sed -n 's/^vscode "\([^"]*\)".*/\1/p' "$BREWFILE" | tr '[:upper:]' '[:lower:]' | sort)"
 
+  declared_n="$(printf '%s\n' "$declared_list" | grep -c . || true)"
   installed_n="$(printf '%s\n' "$installed_list" | grep -c . || true)"
-  if [ -z "$missing_ext" ]; then
+
+  # Declared but absent. Names, not arithmetic: comparing totals was worthless,
+  # because extensions pulled in as dependencies inflate the count. "53
+  # installed, 50 declared" passed while saying nothing about which 53.
+  missing_ext="$(comm -23 <(printf '%s\n' "$declared_list") <(printf '%s\n' "$installed_list") | tr '\n' ' ')"
+  if [ -z "$(printf '%s' "$missing_ext" | tr -d ' ')" ]; then
     ok "all $declared_n declared extensions installed ($installed_n present in total)"
   else
-    bad "declared extensions missing:$missing_ext"
+    bad "declared extensions missing: $missing_ext"
+  fi
+
+  # Present but undeclared -- the pack-drift window. An extension pack can gain
+  # a member upstream that you never chose; it arrives on the next install and
+  # shows up on a rebuild, undeclared. That is how ms-vscode-remote.remote-ssh
+  # came to exist in the certification VM and not on the real Mac, with
+  # `brew bundle check` passing on both because nothing had asked.
+  #
+  # A warning, not a failure: dependencies legitimately arrive this way and a
+  # rebuild should not fail over an extra editor plugin. It says the repo has
+  # fallen behind the machine, which is fixed at leisure with a dump and re-add.
+  extra_ext="$(comm -13 <(printf '%s\n' "$declared_list") <(printf '%s\n' "$installed_list") | tr '\n' ' ')"
+  if [ -z "$(printf '%s' "$extra_ext" | tr -d ' ')" ]; then
+    ok "no undeclared extensions (.Brewfile fully determines the set)"
+  else
+    caution "installed but not declared: $extra_ext" \
+            "adopt with 'brew bundle dump --global --force; chezmoi re-add ~/.Brewfile', or uninstall"
   fi
 else
   bad "code CLI not on PATH" "the visual-studio-code cask should provide it"
