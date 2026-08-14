@@ -7,7 +7,9 @@
 # file existed, found nothing to do, and reported "all tools are installed" --
 # true, and completely meaningless. Every check here looks at the machine.
 #
-# Runs inside the certification VM (certify.sh pipes it over SSH), but it is
+# Runs inside the certification VM (certify.sh copies it there and runs it as a
+# file -- never piped to `bash -s`, because the first check that reads stdin
+# would then swallow the rest of the script), but it is
 # deliberately standalone: run it on the real Mac too, any time you want to know
 # whether the machine still matches the repo.
 #
@@ -249,7 +251,7 @@ esac
 # output that say nothing about the machine. That is a defect in the test, not
 # in the shell, and filtering the messages by name would only paper over it.
 interactive_noise() {
-  script -q /dev/null zsh -ic 'exit' 2>&1 \
+  script -q /dev/null zsh -ic 'exit' </dev/null 2>&1 \
     | sed $'s/\x1b\\[[0-9;]*[a-zA-Z]//g' \
     | tr -d '\r' \
     | grep -v '^\^D' \
@@ -261,7 +263,7 @@ if [ "${shell_noise:-1}" -le 1 ]; then
   ok "interactive shell starts without errors"
 else
   bad "interactive shell prints $shell_noise line(s) of unexpected output" \
-      "$(script -q /dev/null zsh -ic 'exit' 2>&1 | sed $'s/\x1b\\[[0-9;]*[a-zA-Z]//g' | tr -d '\r' | grep -v '^\^D' | head -3 | tr '\n' ' ')"
+      "$(script -q /dev/null zsh -ic 'exit' </dev/null 2>&1 | sed $'s/\x1b\\[[0-9;]*[a-zA-Z]//g' | tr -d '\r' | grep -v '^\^D' | head -3 | tr '\n' ' ')"
 fi
 
 # --- Java ------------------------------------------------------------------
@@ -334,10 +336,16 @@ printf '\n\033[1m%s\033[0m\n' "Summary"
 printf '  %s passed, %s failed, %s warnings\n' \
   "$(green "$PASS")" "$([ "$FAIL" -gt 0 ] && red "$FAIL" || echo 0)" "$(amber "$WARNED")"
 
+# The sentinel below is the last thing this script does, and certify.sh requires
+# it. A verification that dies partway through must never be mistaken for one
+# that passed -- exactly the "reported success, did nothing" failure that this
+# whole exercise exists to catch.
+printf 'VERIFY-COMPLETE %s passed %s failed %s warnings\n' "$PASS" "$FAIL" "$WARNED"
+
 if [ "$FAIL" -gt 0 ]; then
-  printf '\n%s\n' "$(red 'Verification failed.')"
+  printf '%s\n' "$(red 'Verification failed.')"
   exit 1
 fi
 
-printf '\n%s\n' "$(green 'All checks passed.')"
+printf '%s\n' "$(green 'All checks passed.')"
 exit 0

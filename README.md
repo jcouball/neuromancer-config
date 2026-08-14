@@ -636,6 +636,7 @@ recovery path you would only exercise under pressure.
 | `provision.sh` appended `brew shellenv` to `~/.zprofile`, which chezmoi then overwrote | the line was already in `dot_zprofile`, so the wrong code produced the right result |
 | `provision.sh` skipped the apply entirely if `~/.local/share/chezmoi` existed | a second run was never needed, because the first had never failed |
 | `wait_for_icloud_login` looped forever with no timeout | a human was always sitting there to sign in |
+| `provision.sh --unattended` refused to start on a correctly configured machine, because it probed with `sudo -n -v` | never run unattended; interactively `sudo -v` is correct, and the difference only shows up under NOPASSWD, where there is no credential to cache |
 | An iTerm2 preferences plist was managed for an application that was not installed and not declared | a leftover `com.googlecode.iterm2` defaults domain still answered `defaults read`, so the config looked live long after the app was gone |
 
 ### The one that justifies the exercise
@@ -664,6 +665,28 @@ can no longer report success without having done anything. This is also why
 `certify.sh` runs `verify.sh` **even when the bootstrap exits non-zero**, and
 why `verify.sh` checks that `ruby` resolves to an asdf shim rather than merely
 that asdf is installed.
+
+### The harness fell for it too
+
+Worth recording, because it is the same defect wearing different clothes.
+
+The first complete run printed **✅ CERTIFIED** against a VM with no Homebrew,
+no chezmoi and not one managed file. `certify.sh` had piped `verify.sh` into
+`bash -s` over SSH, which makes stdin the script itself — so the first check
+that read stdin (`script`, used to get a pty for the interactive-shell test)
+consumed the rest of the file. bash hit EOF partway through, exited 0 because
+the last command it had managed to run succeeded, and ssh reported success. The
+harness believed it.
+
+That is exactly the failure the asdf script had: *a zero exit from a program
+that never did the work* — written into this repo by someone who had spent the
+day documenting that precise hazard.
+
+Two fixes, because one is never enough for this class of bug. `verify.sh` is now
+copied to the guest and run as a file, so nothing can consume it. And it prints
+`VERIFY-COMPLETE` as its final act, which `certify.sh` requires — a run that
+dies partway through can no longer be mistaken for a clean one. **A zero exit is
+not evidence; positive proof of completion is.**
 
 ### What certification cannot cover
 

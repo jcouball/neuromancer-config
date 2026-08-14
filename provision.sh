@@ -62,14 +62,21 @@ ensure_sudo_credentials() {
   log "Validating sudo credentials..."
 
   if [ "$UNATTENDED" = "1" ]; then
-    sudo -n -v 2>/dev/null || die "Unattended mode needs a cached or passwordless sudo credential."
+    # `sudo -n true`, not `sudo -n -v`. The -v flag validates and refreshes the
+    # user's authentication timestamp, and a NOPASSWD user has no credential to
+    # cache -- so sudo reports "a password is required" and exits 1 even though
+    # every sudo command would in fact succeed. Certification found this by
+    # failing on its very first step against a correctly configured VM.
+    sudo -n true 2>/dev/null || die "Unattended mode needs passwordless sudo (NOPASSWD) or a cached credential."
   else
     sudo -v || die "You must enter valid sudo credentials to run this script."
   fi
 
-  # Refresh the timestamp until this script exits.
+  # Refresh the timestamp until this script exits. Same reasoning as above: a
+  # NOPASSWD user cannot refresh a timestamp, and `-v` here would make the
+  # keepalive exit immediately on exactly the machines that need no keepalive.
   while true; do
-    sudo -n -v 2>/dev/null || exit
+    sudo -n true 2>/dev/null || exit
     sleep 60
     kill -0 "$$" 2>/dev/null || exit
   done &

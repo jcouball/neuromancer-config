@@ -174,8 +174,35 @@ fi
 
 log "Verifying outcomes. Transcript: $VERIFY_LOG"
 
-guest "SKIP_MAS=1 bash -s" < "$SCRIPT_DIR/verify.sh" 2>&1 | tee "$VERIFY_LOG"
+# Copy the script over and run it as a file, rather than piping it to `bash -s`.
+#
+# Piping made stdin the script itself, so the first command inside it that read
+# stdin -- `script`, used to get a pty for the interactive-shell check -- ate the
+# remainder. bash hit EOF partway through, exited 0 because the last command it
+# managed to run had succeeded, and ssh reported success. certify.sh believed it
+# and printed CERTIFIED over a machine with no Homebrew, no chezmoi and no
+# managed files at all.
+scp -q -i "$CERT_SSH_KEY" -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes \
+    "$SCRIPT_DIR/verify.sh" "$CERT_USER@$IP:/tmp/verify.sh" \
+  || die "Could not copy verify.sh to the VM."
+
+# set +e: the pipeline is expected to fail when verification fails, and with
+# `set -e` plus pipefail that would abort the script here -- silently, before it
+# could report anything.
+set +e
+guest "SKIP_MAS=1 bash /tmp/verify.sh" 2>&1 | tee "$VERIFY_LOG"
 VERIFY_STATUS=${PIPESTATUS[0]}
+set -e
+
+# Never trust a zero exit on its own. verify.sh prints a sentinel as its final
+# act, so a run that died partway through cannot be mistaken for a clean one --
+# which is the entire lesson of the defect this harness exists to catch, and
+# which this harness itself fell for.
+if ! grep -q '^VERIFY-COMPLETE' "$VERIFY_LOG"; then
+  warn "verify.sh did not run to completion -- its result cannot be trusted."
+  VERIFY_STATUS=1
+fi
 
 echo
 if [ "$VERIFY_STATUS" -eq 0 ]; then
