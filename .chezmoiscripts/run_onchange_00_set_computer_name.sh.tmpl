@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# Set this machine's name.
+#
+# The one piece of a rebuild that cannot be derived from the repo, because it is
+# the answer to "which machine is this?" -- asked once by .chezmoi.toml.tmpl and
+# recorded in chezmoi's config from then on.
+#
+# Three names, not one. macOS keeps them separately and they drift apart
+# silently: ComputerName is what Finder and Sharing show, LocalHostName is the
+# Bonjour name, and HostName is what the shell's `hostname` returns. On this
+# machine HostName was simply never set, which nothing complains about until
+# something reads it.
+#
+# run_onchange_ keyed on the name below, so changing it in chezmoi's config
+# re-applies it rather than requiring you to remember the scutil incantation.
+#
+# computerName: {{ .computerName }}
+
+set -euo pipefail
+
+WANT={{ .computerName | quote }}
+
+[ -n "$WANT" ] || { echo ">> No computer name configured; skipping."; exit 0; }
+
+# LocalHostName cannot contain spaces or most punctuation -- macOS substitutes
+# hyphens. Do the same substitution here rather than letting scutil reject it.
+LOCAL_NAME="$(printf '%s' "$WANT" | tr ' ' '-' | tr -cd '[:alnum:]-')"
+
+current="$(scutil --get ComputerName 2>/dev/null || echo '')"
+if [ "$current" = "$WANT" ] \
+   && [ "$(scutil --get HostName 2>/dev/null || echo '')" = "$WANT" ] \
+   && [ "$(scutil --get LocalHostName 2>/dev/null || echo '')" = "$LOCAL_NAME" ]; then
+  echo ">> Computer name already set to '$WANT'."
+  exit 0
+fi
+
+# Needs root. Available unattended only with NOPASSWD or a cached credential.
+if ! sudo -n true 2>/dev/null && [ ! -t 0 ]; then
+  echo "❌ Setting the computer name needs sudo, and there is no terminal to prompt on." >&2
+  echo "   Run 'chezmoi apply' from an interactive shell, or 'sudo -v' first." >&2
+  exit 1
+fi
+
+echo ">> Setting computer name to '$WANT' (LocalHostName '$LOCAL_NAME')..."
+sudo scutil --set ComputerName "$WANT"
+sudo scutil --set HostName "$WANT"
+sudo scutil --set LocalHostName "$LOCAL_NAME"
+
+echo ">> ComputerName=$(scutil --get ComputerName) HostName=$(scutil --get HostName) LocalHostName=$(scutil --get LocalHostName)"

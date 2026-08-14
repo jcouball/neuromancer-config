@@ -1,0 +1,22 @@
+{{/*
+  Config template. chezmoi renders this once, at `chezmoi init`, and writes the
+  result to ~/.config/chezmoi/chezmoi.toml.
+
+  This is where a rebuild asks the one question it genuinely cannot infer: what
+  this machine is called. promptStringOnce only asks if the answer is not
+  already recorded, so re-running `chezmoi init` on a configured machine is
+  silent.
+
+  To answer it without a terminal -- which is what certification does -- pass:
+
+      chezmoi init --apply --promptString "Computer name=some-name"
+
+  Note the key is the PROMPT TEXT, not the variable name. `--promptString
+  computerName=...` looks correct, is accepted without complaint, and then
+  prompts anyway -- failing with "could not open a new TTY" in any context that
+  has none.
+*/ -}}
+{{- $computerName := promptStringOnce . "computerName" "Computer name" (output "scutil" "--get" "ComputerName" | trim) -}}
+
+[data]
+    computerName = {{ $computerName | quote }}

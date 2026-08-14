@@ -47,25 +47,24 @@ nothing here needs a conditional.
 installed and no prerequisites beyond macOS itself:
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/jcouball/neuromancer-config/main/provision.sh)"
+# 1. Homebrew. Its installer pulls in the Command Line Tools on the way.
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 2. chezmoi.
+eval "$(/opt/homebrew/bin/brew shellenv)"
+brew install chezmoi
+
+# 3. Everything else.
+chezmoi init --apply jcouball/neuromancer-config
 ```
 
-That is the whole thing. It asks for the computer name, waits for you to sign in
-to your Apple ID, installs the Command Line Tools, Homebrew and chezmoi, and
-then hands over to chezmoi, which owns everything else.
+Step 3 asks one question — what this machine is called — and then does the rest:
+Rosetta, the Brewfile, the runtimes, every config file, the JDK link.
 
-> ⚠️ Review [provision.sh](provision.sh) before running it. It makes
-> system-level changes, installs developer tools, and rewrites your shell
-> environment.
-
-**Sign in to the App Store as well as iCloud**, before or during the run. They
-are separate sign-ins, and the 14 `mas` entries in `.Brewfile` need the App
-Store one. If you skip it the run still completes — everything that matters for
-development is installed by then — and prints how to finish:
-
-```bash
-brew bundle --file="$HOME/.Brewfile"
-```
+**Sign in to iCloud and the App Store first**, if you want the App Store apps.
+They are separate sign-ins and only the second satisfies `mas`. Skipping it
+costs nothing else: the run completes, and the 14 App Store entries can be
+picked up later with `brew bundle --file="$HOME/.Brewfile"`.
 
 Afterwards, by hand — the parts a script cannot do:
 
@@ -76,6 +75,30 @@ Afterwards, by hand — the parts a script cannot do:
    [Deliberately not managed](#deliberately-not-managed).
 2. **Sign in to 1Password** and enable its CLI integration, if you use the
    `op`-templated files — see [Secrets](#secrets).
+
+### Why three commands and not one
+
+There was a `provision.sh` here, fetched with `curl | sh`. It is gone, and the
+reason is worth keeping.
+
+A hosted bootstrap script has to be delivered by `raw.githubusercontent.com`,
+which **caches for about five minutes**. Fix the script, push, rebuild, and the
+machine fetches the previous version — so it fails for the reason you just
+eliminated, with a log byte-identical to the last run. That cost a full
+certification cycle.
+
+`chezmoi init` clones over **git**, which has no cache. What the machine gets is
+always what was last pushed. The bootstrap also stops depending on a script this
+repo hosts: the only `curl` left points at Homebrew's own installer, which is
+their problem to keep working, not yours.
+
+It also matches [sophon-config](https://github.com/jcouball/sophon-config),
+whose bootstrap is the same shape — install chezmoi, then `chezmoi init --apply`
+— so the two repos are rebuilt the same way on both platforms.
+
+The cost is one command becoming three. In an emergency that is arguably the
+better trade: three short commands you can retype from memory beat one long URL
+that has to be transcribed exactly.
 
 This path is **certified** — run end to end on a clean macOS VM as a different
 user. See [Certification](#certification) for what that found and what it cannot
@@ -304,7 +327,7 @@ triggers re-certification exactly as editing a provisioning script would.
 ### Re-certify the rebuild
 
 Do this after **any change to the bootstrap path**: an edited provisioning
-script, a new package manager, a change to `provision.sh`, a renamed repository,
+script, a new package manager, a change to `.chezmoi.toml.tmpl`, a renamed repo,
 or a major macOS upgrade. Not needed for adding a package or bumping a runtime —
 those exercise proven ground.
 
@@ -353,7 +376,7 @@ Measured immediately after the rename, the old raw URL returned `200`:
 
 ```console
 $ curl -fsIL -o /dev/null -w '%{http_code}\n' \
-    https://raw.githubusercontent.com/jcouball/dotfiles/main/provision.sh
+    https://raw.githubusercontent.com/jcouball/dotfiles/main/README.md
 200
 ```
 
@@ -422,7 +445,7 @@ this machine that isn't in the repo, the system has a hole in it.
 ```text
 README.md                          this document (ignored, not deployed)
 LICENSE.txt                        MIT (ignored)
-provision.sh                       the bootstrap; the only thing run by hand (ignored)
+.chezmoi.toml.tmpl                 asks the machine's name once, at init
 .chezmoiignore                     keeps the four above out of the home directory
 .gitattributes                     * text=auto eol=lf
 
@@ -461,8 +484,8 @@ certification/
 ### Two path traps
 
 **Anything in the source root without a leading dot becomes a target.**
-`README.md`, `LICENSE.txt`, `provision.sh` and `certification/` would all be
-written into the home directory; all four are in `.chezmoiignore`. This is not
+`README.md`, `LICENSE.txt` and `certification/` would all be written into the
+home directory; all three are in `.chezmoiignore`. This is not
 hypothetical — `README.md` was missing from that list for a long time, and
 `~/README.md` was quietly a copy of this file. Dot-prefixed source entries are
 ignored by chezmoi automatically, which is why real dotfiles need the `dot_`
@@ -633,10 +656,10 @@ recovery path you would only exercise under pressure.
 | `JAVA_HOME` pointed at a GraalVM install that no longer existed | nothing in daily use read it, so a dead path survived for years |
 | `xcrun --show-sdk-path` and the powerlevel10k `source` were unguarded | both dependencies were long since installed |
 | `.profile` sourced `~/.cargo/env` unguarded | Rust was installed before that file was ever read on a cold machine |
-| `provision.sh` appended `brew shellenv` to `~/.zprofile`, which chezmoi then overwrote | the line was already in `dot_zprofile`, so the wrong code produced the right result |
-| `provision.sh` skipped the apply entirely if `~/.local/share/chezmoi` existed | a second run was never needed, because the first had never failed |
+| `provision.sh` (since removed) appended `brew shellenv` to `~/.zprofile`, which chezmoi then overwrote | the line was already in `dot_zprofile`, so the wrong code produced the right result |
+| `provision.sh` (since removed) skipped the apply entirely if `~/.local/share/chezmoi` existed | a second run was never needed, because the first had never failed |
 | `wait_for_icloud_login` looped forever with no timeout | a human was always sitting there to sign in |
-| `provision.sh --unattended` refused to start on a correctly configured machine, because it probed with `sudo -n -v` | never run unattended; interactively `sudo -v` is correct, and the difference only shows up under NOPASSWD, where there is no credential to cache |
+| `provision.sh --unattended` (since removed) refused to start on a correctly configured machine, because it probed with `sudo -n -v` | never run unattended; interactively `sudo -v` is correct, and the difference only shows up under NOPASSWD, where there is no credential to cache |
 | An iTerm2 preferences plist was managed for an application that was not installed and not declared | a leftover `com.googlecode.iterm2` defaults domain still answered `defaults read`, so the config looked live long after the app was gone |
 
 ### The one that justifies the exercise
@@ -668,20 +691,17 @@ that asdf is installed.
 
 ### The raw CDN serves stale scripts
 
-`raw.githubusercontent.com` caches branch URLs for around five minutes. Push a
-fix to `provision.sh`, re-run certification immediately, and the VM fetches the
-**previous** version — so the run certifies code you already corrected and fails
-for the exact reason you just eliminated.
+`raw.githubusercontent.com` caches for around five minutes. When the bootstrap
+was a `provision.sh` hosted here, pushing a fix and re-running certification
+immediately meant the VM fetched the **previous** version — so the run failed
+for the exact reason just eliminated, with a bootstrap log byte-identical to the
+one before it. That reads as "the fix did not work" rather than "the fix was not
+there", and it cost a full cycle.
 
-This cost a full cycle before it was spotted, and it hides well: the bootstrap
-log was byte-identical to the previous run's, which reads as "the fix did not
-work" rather than "the fix was not there."
-
-`certify.sh` therefore fetches by **commit SHA**, which is immutable and
-therefore never stale, and refuses to run against a commit that has not been
-pushed — since the CDN cannot serve what GitHub has not received. It also means
-each run records precisely which commit it certified. `REF=main` exercises the
-branch URL the README publishes, once the cache has expired.
+The workaround was to fetch by commit SHA, which is immutable. The actual fix
+was to stop hosting a bootstrap script at all: `chezmoi init` clones over git,
+which has no cache. See
+[Why three commands and not one](#why-three-commands-and-not-one).
 
 ### The harness fell for it too
 
@@ -735,24 +755,24 @@ nested virtualization, so a VM cannot create VMs. A few unused megabytes in a
 throwaway machine is cheaper than a hole in the emergency procedure.
 
 ```bash
-tart create --from-ipsw=latest neuromancer-base
+# --disk-size MUST be set here. It cannot be fixed later: `tart set --disk-size`
+# grows the virtual disk but not the APFS container inside it, and the container
+# cannot be grown afterwards either, because macOS puts the Recovery partition
+# *after* the data container -- so the new space is on the far side of it and
+# `diskutil apfs resizeContainer` fails with -69519.
+#
+# The default 50 GB yields ~41 GiB usable, and `brew bundle` exhausts it partway
+# through, reporting 113 failed package installs rather than "the disk is full".
+tart create --from-ipsw=latest --disk-size 100 neuromancer-base
 
-# tart's defaults are 4 CPU / 4 GB / 50 GB, and the OS install alone takes
-# 22 GB of that. Ruby and Python compile from source and there are 37 casks to
-# unpack, so the default disk fails partway through -- for reasons that have
-# nothing to do with whether the repo works. Resize before the first boot.
-# The disk is sparse: 100 GB costs nothing until it is used, and can only ever
-# be grown, never shrunk.
+# CPU and memory *can* be changed later; only the disk cannot.
 # --display units are POINTS for macOS guests, not pixels, so 1920x1080 is a
 # logical display larger than a 14" MacBook Pro's own screen and the window will
 # not fit. 1280x800 fits any laptop; --display-refit then lets the guest follow
 # the window as you resize it.
-tart set neuromancer-base --cpu 6 --memory 8192 --disk-size 100 \
+tart set neuromancer-base --cpu 6 --memory 8192 \
                           --display 1280x800 --display-refit
 
-# A dedicated, passphrase-less key. Passphrase-less because certify.sh runs
-# unattended over BatchMode SSH; dedicated because the alternative is giving a
-# throwaway VM a key that also opens something real.
 ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519_neuromancer_cert \
   -C 'neuromancer-config certification VM'
 
@@ -910,10 +930,9 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   toolchains and silently records none. If you ever start relying on `go` or
   `cargo` lines in the Brewfile, they will be quietly empty. Nothing else in the
   dump is affected — formulae, casks, taps, `vscode` and `mas` are all fine.
-- **Two provisioning scripts need sudo** — 01 (Rosetta) and 05 (linking
-  openjdk). `provision.sh` holds a sudo timestamp open for the whole bootstrap,
-  so a rebuild is unaffected. A bare `chezmoi apply` is not: run it from an
-  interactive shell, or `sudo -v` first. Both scripts now say so rather than
+- **Three provisioning scripts need sudo** — 00 (computer name), 01 (Rosetta)
+  and 05 (linking openjdk). Run `chezmoi apply` from an interactive shell so
+  sudo can prompt, or `sudo -v` first. Both scripts now say so rather than
   emitting a bare `sudo: a password is required` from a script you did not know
   was running. A failed script stays pending in `chezmoi status`, so it retries
   — it does not silently record success.

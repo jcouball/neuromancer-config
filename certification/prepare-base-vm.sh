@@ -40,6 +40,36 @@ if [ "$USER" = "james" ]; then
   case "$reply" in [yY]*) ;; *) exit 1 ;; esac
 fi
 
+# --- Disk ------------------------------------------------------------------
+
+log "Checking the disk is big enough..."
+
+# Disk size has to be set when the VM is CREATED. `tart set --disk-size` grows
+# the virtual disk but not the APFS container inside it, and the container
+# cannot be grown afterwards either: macOS lays the Recovery partition down
+# *after* the data container, so the free space is on the far side of it and
+# `diskutil apfs resizeContainer` fails with -69519.
+#
+# The failure mode is nasty. A 50 GB VM gets ~41 GiB usable, ~29 GiB of it free
+# after macOS, and `brew bundle` runs out somewhere in the middle of 121
+# packages -- reporting 113 failed installs rather than "the disk is full".
+#
+# The only fix is at creation:
+#   tart create --from-ipsw=latest --disk-size 100 neuromancer-base
+AVAIL_GB="$(df -g / | awk 'NR==2{print $4}')"
+echo "   ${AVAIL_GB} GB available."
+
+if [ "${AVAIL_GB:-0}" -lt 45 ]; then
+  warn "Only ${AVAIL_GB} GB free. The Brewfile needs roughly 35-40 GB for 84"
+  warn "formulae and 37 casks, and this VM will run out partway through."
+  warn "Recreate it with a bigger disk -- the size cannot be changed later:"
+  warn "  tart delete $(scutil --get LocalHostName 2>/dev/null || echo neuromancer-base)"
+  warn "  tart create --from-ipsw=latest --disk-size 100 neuromancer-base"
+  printf '   Continue anyway? [y/N] '
+  read -r reply
+  case "$reply" in [yY]*) ;; *) exit 1 ;; esac
+fi
+
 # --- Public key ------------------------------------------------------------
 
 log "Installing the certification public key..."
@@ -65,7 +95,7 @@ chmod 600 "$HOME/.ssh/authorized_keys"
 # --- Passwordless sudo -----------------------------------------------------
 
 log "Granting passwordless sudo to $USER..."
-echo "   provision.sh --unattended requires it, and scripts 01 and 05 need root."
+echo "   Unattended provisioning requires it, and two chezmoi scripts need root."
 
 if sudo -n true 2>/dev/null && [ -f "/etc/sudoers.d/$USER" ]; then
   echo "   Already configured."
