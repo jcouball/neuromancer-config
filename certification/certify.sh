@@ -58,7 +58,12 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-log()  { printf '\n\033[1m>> %s\033[0m\n' "$*"; }
+# All three write to stderr. log() in particular must: wait_for_ssh's result is
+# captured with $(...), so anything it prints to stdout is captured as part of
+# the value. It printed its progress there, and the IP became the whole
+# transcript -- log line, dots and address -- which ssh rejected as
+# "hostname contains invalid characters".
+log()  { printf '\n\033[1m>> %s\033[0m\n' "$*" >&2; }
 warn() { printf '\033[33m!! %s\033[0m\n' "$*" >&2; }
 die()  { printf '\033[31m❌ %s\033[0m\n' "$*" >&2; exit 1; }
 
@@ -95,9 +100,9 @@ wait_for_ssh() {
     fi
     sleep 5
     waited=$((waited + 5))
-    printf "."
+    printf "." >&2
   done
-  echo
+  echo >&2
   die "VM did not become reachable over SSH within ${BOOT_TIMEOUT}s.
      Check that the base image has Remote Login enabled and this host's
      public key in ~$CERT_USER/.ssh/authorized_keys."
@@ -130,9 +135,11 @@ if [ "$VERIFY_ONLY" -eq 0 ]; then
   tart clone "$BASE_VM" "$CERT_VM"
 
   log "Starting $CERT_VM..."
-  tart run "$CERT_VM" --no-graphics >"$LOG_DIR/vm-console.log" 2>&1 &
-  TART_PID=$!
-  trap 'kill "$TART_PID" 2>/dev/null || true' EXIT
+  # nohup, and deliberately no EXIT trap to kill it. A trap here stopped the VM
+  # the moment the script finished, which contradicted the closing message,
+  # made --verify-only impossible, and threw away the failed machine that is
+  # the most useful thing a failed run produces.
+  nohup tart run "$CERT_VM" --no-graphics >"$LOG_DIR/vm-console.log" 2>&1 &
 fi
 
 IP="$(wait_for_ssh)"
@@ -179,10 +186,11 @@ fi
 
 cat <<EOF
 
-The VM is still running so you can inspect it:
+The VM is left running so you can inspect it:
 
   ssh -i $CERT_SSH_KEY $CERT_USER@$IP
-  tart delete $CERT_VM      # when you are done
+  ./certification/certify.sh --verify-only   # re-check without rebuilding
+  tart stop $CERT_VM && tart delete $CERT_VM # when you are done
 
 Record anything this found in the Certification section of the README. A defect
 that is fixed but not written down will be rediscovered from scratch.
