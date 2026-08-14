@@ -44,9 +44,28 @@ BREWFILE="$HOME/.Brewfile"
 mas_ids=$(awk -F'id:' '/^mas /{gsub(/[^0-9]/, "", $2); if ($2 != "") print $2}' "$BREWFILE" | tr '\n' ' ')
 mas_count=$(printf '%s' "$mas_ids" | wc -w | tr -d ' ')
 
-# Pass 1: taps, formulae, casks and VS Code extensions. This must succeed.
+# Pass 1: taps, formulae, casks and VS Code extensions.
+#
+# Deliberately NOT fatal. `brew bundle` exits non-zero if any single entry
+# fails, and chezmoi aborts the whole apply on a failing script -- so one bad
+# cask used to take the entire rebuild down with it. Certification caught this
+# with Zoom, whose installer package fails inside a VM: four entries out of 121
+# failed, scripts 03, 04 and 05 never ran, and the machine ended up with every
+# application and none of its runtimes. No Ruby, no Node, no Go, no Python, no
+# Rust -- from a video conferencing app.
+#
+# A partial failure must not stop the layers below it. What is missing is not
+# hidden: verify.sh runs `brew bundle check` and fails on anything absent, which
+# is the right place to judge -- outcomes, not exit codes.
 echo ">> Installing from Brewfile (excluding $mas_count Mac App Store apps)..."
-HOMEBREW_BUNDLE_MAS_SKIP="$mas_ids" brew bundle --file="$BREWFILE"
+if HOMEBREW_BUNDLE_MAS_SKIP="$mas_ids" brew bundle --file="$BREWFILE"; then
+  echo ">> Brewfile installed."
+else
+  echo "!! Some Brewfile entries failed to install." >&2
+  echo "!! Continuing: the runtimes below matter more than any single package," >&2
+  echo "!! and aborting here would leave this machine with no Ruby or Node at all." >&2
+  echo "!! Run 'certification/verify.sh' to see exactly what is missing." >&2
+fi
 
 # Pass 2: the Mac App Store apps.
 #

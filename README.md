@@ -16,7 +16,7 @@ nothing here needs a conditional.
 | Terminal | Warp (installed by `.Brewfile`; its settings cannot be versioned) |
 | Package manager | Homebrew — 84 formulae, 37 casks, 50 VS Code extensions, 14 App Store apps |
 | Runtimes | asdf, 5 tools |
-| Rebuild | **certified** on a clean VM, except the App Store layer |
+| Rebuild | **not yet certified** — the harness works; a clean run has not passed |
 
 ---
 
@@ -100,9 +100,10 @@ The cost is one command becoming three. In an emergency that is arguably the
 better trade: three short commands you can retype from memory beat one long URL
 that has to be transcribed exactly.
 
-This path is **certified** — run end to end on a clean macOS VM as a different
-user. See [Certification](#certification) for what that found and what it cannot
-cover.
+This path is **not yet certified.** The harness runs, and the bootstrap has been
+driven end to end against a clean VM, but no run has yet passed every check. See
+[Certification](#certification) for what the attempts have found so far — which
+is the point of the exercise, and more useful than the badge.
 
 ---
 
@@ -646,6 +647,8 @@ recovery path you would only exercise under pressure.
 
 | Defect | Why the live machine masked it |
 | --- | --- |
+| **One failing cask aborted the entire rebuild.** Zoom's installer fails inside a VM; `brew bundle` exited non-zero, script 02 died under `set -e`, chezmoi stopped the apply, and scripts 03, 04 and 05 never ran — leaving a machine with every application and no runtimes at all | on a real Mac every package installs, so the abort path was never taken |
+| `pgrep oahd` reported a working Rosetta as "not installed" | the daemon runs only while something is being translated, and the live Mac is always translating something |
 | **The asdf scripts ran before `~/.tool-versions` existed, installed nothing, and exited zero** | `run_once_` had already fired once, years ago, on a machine where the file happened to exist — so it could never run again, and never fail again |
 | Both asdf scripts sourced `$(brew --prefix asdf)/libexec/asdf.sh`, which asdf 0.16 deleted | asdf was already on `PATH`, so the dead `source` line looked like it worked |
 | `brew bundle` could never re-run — `run_once_` meant a package added to `.Brewfile` was never installed | packages were added by hand at the same time, so the repo and the machine agreed by coincidence |
@@ -917,7 +920,10 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   than what is merely stale — `verify.sh` does exactly this, or the genuinely
   missing entries drown in a list of things that just want upgrading.
 - **`run_once_` scripts never run again**, so Rosetta will not be reinstalled if
-  it is ever removed. `pgrep oahd` tells you; `verify.sh` checks it.
+  it is ever removed. `arch -x86_64 /usr/bin/true` tells you; `verify.sh` checks
+  it. Do **not** use `pgrep oahd` for this: the daemon only runs while something
+  is actively being translated, so it reports "not installed" on a machine that
+  simply has not run an Intel binary since boot.
 - **Sign in to iCloud and the App Store separately.** They are different
   sign-ins, and only the second one satisfies `mas`.
 - **`brew bundle dump` rewrites the whole file.** Re-add it to chezmoi in the

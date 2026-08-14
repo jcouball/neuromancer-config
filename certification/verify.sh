@@ -58,10 +58,15 @@ else
   bad "Command Line Tools missing" "xcrun, and therefore SDKROOT, will not work"
 fi
 
-if /usr/bin/pgrep -q oahd; then
-  ok "Rosetta 2 running"
+# Tested by running something x86_64, not by looking for the daemon. `pgrep
+# oahd` reports whether Rosetta is *currently translating*, not whether it is
+# installed -- on a machine that has not run an Intel binary since boot, the
+# daemon is simply not there, and certification called a working install
+# "not installed" because of it.
+if arch -x86_64 /usr/bin/true 2>/dev/null; then
+  ok "Rosetta 2 works (ran an x86_64 binary)"
 else
-  bad "Rosetta 2 not installed" "x86_64-only casks will not run"
+  bad "Rosetta 2 not working" "x86_64-only casks will not run"
 fi
 
 if [ -x /opt/homebrew/bin/brew ]; then
