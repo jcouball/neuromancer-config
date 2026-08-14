@@ -666,6 +666,23 @@ can no longer report success without having done anything. This is also why
 why `verify.sh` checks that `ruby` resolves to an asdf shim rather than merely
 that asdf is installed.
 
+### The raw CDN serves stale scripts
+
+`raw.githubusercontent.com` caches branch URLs for around five minutes. Push a
+fix to `provision.sh`, re-run certification immediately, and the VM fetches the
+**previous** version — so the run certifies code you already corrected and fails
+for the exact reason you just eliminated.
+
+This cost a full cycle before it was spotted, and it hides well: the bootstrap
+log was byte-identical to the previous run's, which reads as "the fix did not
+work" rather than "the fix was not there."
+
+`certify.sh` therefore fetches by **commit SHA**, which is immutable and
+therefore never stale, and refuses to run against a commit that has not been
+pushed — since the CDN cannot serve what GitHub has not received. It also means
+each run records precisely which commit it certified. `REF=main` exercises the
+branch URL the README publishes, once the cache has expired.
+
 ### The harness fell for it too
 
 Worth recording, because it is the same defect wearing different clothes.

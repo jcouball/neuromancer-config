@@ -25,9 +25,13 @@
 #                      into the Mac App Store inside a VM, on any tool, at all.
 #                      The 14 `mas` entries in .Brewfile therefore cannot be
 #                      certified here and must be checked on real hardware.
+#   3. commit URL      The fetch is by commit SHA rather than /main/, because the
+#                      raw CDN caches branch URLs for minutes and would serve a
+#                      stale script. Same bytes, addressed precisely -- and the
+#                      run then records which commit it certified.
 #
-# Everything else -- the curl one-liner, the URL, chezmoi, every provisioning
-# script -- runs exactly as written.
+# Everything else -- the curl one-liner, chezmoi, every provisioning script --
+# runs exactly as written.
 
 set -euo pipefail
 
@@ -39,7 +43,19 @@ CERT_USER="${CERT_USER:-certuser}"
 # throwaway VM a key that also opens something real.
 CERT_SSH_KEY="${CERT_SSH_KEY:-$HOME/.ssh/id_ed25519_neuromancer_cert}"
 REPO="${NEUROMANCER_CONFIG_REPO:-jcouball/neuromancer-config}"
-BRANCH="${BRANCH:-main}"
+# Certify a commit, not a branch.
+#
+# raw.githubusercontent.com caches for around five minutes, so fetching
+# .../main/provision.sh right after a push serves the *previous* version. A run
+# then certifies code you already fixed, fails for the reason you just
+# eliminated, and sends you looking for a bug that is not there. It cost a full
+# cycle before it was spotted -- the bootstrap log was byte-identical to the
+# previous run's.
+#
+# A commit URL is immutable, so it is never stale, and it records exactly which
+# commit was certified. Override with REF=main to exercise the branch URL the
+# README publishes.
+REF="${REF:-$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-parse HEAD 2>/dev/null || echo main)}"
 BOOT_TIMEOUT="${BOOT_TIMEOUT:-300}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -76,6 +92,13 @@ command -v tart >/dev/null 2>&1 \
   || die "No certification SSH key at $CERT_SSH_KEY.
      Create one:  ssh-keygen -t ed25519 -N '' -f $CERT_SSH_KEY
      then add $CERT_SSH_KEY.pub to ~$CERT_USER/.ssh/authorized_keys in the base VM."
+
+if [ "$VERIFY_ONLY" -eq 0 ] && [ "$REF" != "main" ]; then
+  # An unpushed commit is invisible to the CDN, and the run would 404 rather
+  # than say why.
+  git -C "$SCRIPT_DIR/.." branch -r --contains "$REF" 2>/dev/null | grep -q . \
+    || die "Commit $REF is not on any remote branch -- push it, or set REF=main."
+fi
 
 if [ "$VERIFY_ONLY" -eq 0 ]; then
   tart list --format json | grep -q "\"$BASE_VM\"" \
@@ -154,9 +177,10 @@ VERIFY_LOG="$LOG_DIR/verify-$STAMP.log"
 
 if [ "$VERIFY_ONLY" -eq 0 ]; then
   log "Running the bootstrap. Transcript: $BOOTSTRAP_LOG"
-  echo "   Without a log, failures have to be inferred from wreckage."
+  echo "   Certifying $REPO @ $REF" >&2
+  echo "   Without a log, failures have to be inferred from wreckage." >&2
 
-  BOOTSTRAP_URL="https://raw.githubusercontent.com/$REPO/$BRANCH/provision.sh"
+  BOOTSTRAP_URL="https://raw.githubusercontent.com/$REPO/$REF/provision.sh"
 
   # The command below is the README's one-liner verbatim, plus the two named
   # deviations. Do not "improve" it here -- the point is to test what the
