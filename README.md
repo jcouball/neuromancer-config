@@ -782,8 +782,19 @@ tart run neuromancer-base
 Complete Setup Assistant, naming the account **`certuser`, not `james`** —
 several of the defects above are only visible to a user who is not you, and
 `.gitconfig` was broken for every other account for years. `certify.sh` expects
-that name; override with `CERT_USER` if you pick another. Skip the Apple ID:
-the App Store will not work in a VM regardless.
+that name; override with `CERT_USER` if you pick another.
+
+**Decline everything optional.** The base image should be as close to bare macOS
+as possible: anything switched on is machine state that is not in this repo, and
+it widens the gap between "clean machine" and the machine certification actually
+runs on.
+
+| Setup Assistant asks | Answer | Why |
+| --- | --- | --- |
+| **FileVault** | **No** | Not merely unnecessary — it *breaks the harness*. FileVault requires pre-boot authentication, and `certify.sh` boots the clone with `--no-graphics` and waits for SSH. An encrypted guest sits at an unlock screen nobody can type into, never brings up the network, and times out every run. On a real Mac, turn it on. |
+| **Location Services** | No | Nothing in the Brewfile or the scripts uses it. Declining means macOS asks for a time zone by hand — **set it correctly**. Every step of the bootstrap is an HTTPS download, and a badly wrong clock fails TLS validation with certificate errors rather than anything that says "your clock is wrong". `sudo sntp -sS time.apple.com` fixes it after the fact. |
+| **Apple ID** | No | The App Store cannot be signed into in a VM at all, and iCloud has nothing to sync here. |
+| **Siri, analytics, Screen Time, Apple Pay, Find My** | No | Background services that add noise and state, and buy nothing. |
 
 Everything after that is one command, because typing into a VM window is
 miserable and error-prone. Boot the base image with this repo's
