@@ -16,7 +16,7 @@ nothing here needs a conditional.
 | Terminal | Warp (installed by `.Brewfile`; its settings cannot be versioned) |
 | Package manager | Homebrew — 84 formulae, 37 casks, 49 VS Code extensions, 14 App Store apps |
 | Runtimes | asdf, 5 tools |
-| Rebuild | **not yet certified** — the harness works; a clean run has not passed |
+| Rebuild | **certified** 2026-08-14 on a clean VM, except the App Store layer |
 
 ---
 
@@ -100,10 +100,9 @@ The cost is one command becoming three. In an emergency that is arguably the
 better trade: three short commands you can retype from memory beat one long URL
 that has to be transcribed exactly.
 
-This path is **not yet certified.** The harness runs, and the bootstrap has been
-driven end to end against a clean VM, but no run has yet passed every check. See
-[Certification](#certification) for what the attempts have found so far — which
-is the point of the exercise, and more useful than the badge.
+This path is **certified** — run end to end on a clean macOS VM, as a user who
+is not `james`, from nothing but a fresh macOS install. See
+[Certification](#certification) for what that took and what it cannot cover.
 
 ---
 
@@ -640,6 +639,25 @@ A clean `chezmoi diff` proves the repo describes this machine. It says nothing
 about whether the repo can *produce* one. So the rebuild is run against a
 throwaway macOS VM, as a user who is not `james`.
 
+### The certified run
+
+| | |
+| --- | --- |
+| Date | 2026-08-14 |
+| Commit | `4a2974c` |
+| Guest | macOS Tahoe 26.6.1, 6 CPU / 8 GB / 100 GB, user `certuser` |
+| Result | **40 passed, 0 failed, 2 warnings** |
+
+The warnings are the three things an Apple Silicon VM structurally cannot do —
+the 14 App Store apps, `zoom`, and `postgresql@17`'s service — each named
+individually by `verify.sh` rather than waved away, and each to be checked on
+real hardware.
+
+It took six runs. One repo defect was found by the very first bootstrap that
+executed; three more were found once it got further; and four were defects in
+the harness itself, which is its own lesson. The table below is the whole
+inventory.
+
 ### What a clean machine found
 
 Every one of these was invisible on Neuromancer, and all of them sat in the
@@ -647,6 +665,7 @@ recovery path you would only exercise under pressure.
 
 | Defect | Why the live machine masked it |
 | --- | --- |
+| **Parallel `brew bundle` installs raced each other**, failing with `ENOTEMPTY: directory not empty` — an extension pack and its own members unpacking into the same directory at once | one machine, installed once, over years; a rebuild does all 121 at speed and in parallel |
 | **One failing cask aborted the entire rebuild.** Zoom's installer fails inside a VM; `brew bundle` exited non-zero, script 02 died under `set -e`, chezmoi stopped the apply, and scripts 03, 04 and 05 never ran — leaving a machine with every application and no runtimes at all | on a real Mac every package installs, so the abort path was never taken |
 | `pgrep oahd` reported a working Rosetta as "not installed" | the daemon runs only while something is being translated, and the live Mac is always translating something |
 | **The asdf scripts ran before `~/.tool-versions` existed, installed nothing, and exited zero** | `run_once_` had already fired once, years ago, on a machine where the file happened to exist — so it could never run again, and never fail again |
