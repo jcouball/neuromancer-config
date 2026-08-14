@@ -61,10 +61,28 @@ echo ">> Installing from Brewfile (excluding $mas_count Mac App Store apps)..."
 if HOMEBREW_BUNDLE_MAS_SKIP="$mas_ids" brew bundle --file="$BREWFILE"; then
   echo ">> Brewfile installed."
 else
-  echo "!! Some Brewfile entries failed to install." >&2
-  echo "!! Continuing: the runtimes below matter more than any single package," >&2
-  echo "!! and aborting here would leave this machine with no Ruby or Node at all." >&2
-  echo "!! Run 'certification/verify.sh' to see exactly what is missing." >&2
+  # Retry once, serially.
+  #
+  # `brew bundle` installs in parallel, and some entries collide when they do.
+  # Certification caught VS Code extensions racing each other: .Brewfile declares
+  # ms-vscode-remote.vscode-remote-extensionpack *and* two extensions that pack
+  # contains, so two concurrent `code --install-extension` processes tried to
+  # unpack ms-vscode-remote.remote-wsl into the same directory and both died with
+  # "ENOTEMPTY: directory not empty".
+  #
+  # HOMEBREW_BUNDLE_JOBS=1 removes the concurrency, so a collision cannot recur.
+  # Anything still failing on the second pass is a real failure -- a package that
+  # genuinely will not install here -- rather than two installers tripping over
+  # each other. This also covers the ordinary case of a flaky download.
+  echo "!! Some Brewfile entries failed. Retrying serially..." >&2
+  if HOMEBREW_BUNDLE_MAS_SKIP="$mas_ids" HOMEBREW_BUNDLE_JOBS=1      brew bundle --file="$BREWFILE"; then
+    echo ">> Brewfile installed on the serial retry."
+  else
+    echo "!! Some Brewfile entries failed twice." >&2
+    echo "!! Continuing: the runtimes below matter more than any single package," >&2
+    echo "!! and aborting here would leave this machine with no Ruby or Node at all." >&2
+    echo "!! Run 'certification/verify.sh' to see exactly what is missing." >&2
+  fi
 fi
 
 # Pass 2: the Mac App Store apps.

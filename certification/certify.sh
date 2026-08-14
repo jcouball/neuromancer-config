@@ -14,11 +14,11 @@
 #   ./certification/certify.sh --verify-only   # re-run checks on the live cert VM
 #   ./certification/certify.sh --keep          # do not delete a previous cert VM
 #
-# THE TWO DEVIATIONS
+# THE THREE DEVIATIONS
 #
 # The point of certification is to run what the README says, not a convenient
-# variant, so deviations have to be named. There are exactly two, both forced by
-# the platform rather than chosen:
+# variant, so deviations have to be named. There are exactly three, all forced
+# by the platform rather than chosen:
 #
 #   1. --promptString  There is no human at the VM's console to answer chezmoi's
 #                      one question, so the machine name is supplied up front.
@@ -26,10 +26,16 @@
 #                      into the Mac App Store inside a VM, on any tool, at all.
 #                      The 14 `mas` entries in .Brewfile therefore cannot be
 #                      certified here and must be checked on real hardware.
+#   3. CASK_SKIP=zoom  Zoom's installer does not merely fail in a VM, it hangs
+#                      first: its postinstall script launches ZoomUpdater, which
+#                      waits on a GUI session that does not exist, stalling the
+#                      run for minutes at 0% CPU before erroring. Skipping it
+#                      buys back that time. verify.sh still names zoom as an
+#                      unverified entry, so it cannot be quietly forgotten.
 #
-# Everything else runs exactly as the README publishes it. There is no longer a
-# third deviation for the CDN: chezmoi clones over git, which has no cache, so
-# what the VM gets is always what was last pushed.
+# Everything else runs exactly as the README publishes it. There is no deviation
+# for staleness any more: chezmoi clones over git, which has no cache, so what
+# the VM gets is always what was last pushed.
 
 set -euo pipefail
 
@@ -53,7 +59,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --verify-only) VERIFY_ONLY=1 ;;
     --keep) KEEP_OLD=1 ;;
-    --help|-h) sed -n '2,32p' "$0" | sed 's/^#\{1,2\} \{0,1\}//'; exit 0 ;;
+    --help|-h) sed -n '2,38p' "$0" | sed 's/^#\{1,2\} \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 64 ;;
   esac
   shift
@@ -181,7 +187,7 @@ if [ "$VERIFY_ONLY" -eq 0 ]; then
   # will never come.
   # shellcheck disable=SC2016  # $(...) must stay unexpanded: it runs in the guest.
   BOOTSTRAP='set -e
-export SKIP_MAS=1 NONINTERACTIVE=1
+export SKIP_MAS=1 NONINTERACTIVE=1 HOMEBREW_BUNDLE_CASK_SKIP=zoom
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 eval "$(/opt/homebrew/bin/brew shellenv)"
 brew install chezmoi

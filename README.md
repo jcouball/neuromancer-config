@@ -750,6 +750,12 @@ cannot enumerate is indistinguishable from a bug you have stopped noticing:
 | **zoom** | The installer package's postinstall scripts fail. `installer` reports "An error occurred while running scripts from the package". It installs fine on real hardware. |
 | **postgresql@17** | `restart_service` needs a GUI launchd domain. Over SSH there is no Aqua session, so `launchctl enable gui/501/homebrew.mxcl.postgresql@17` exits 125 with "Domain does not support specified action". |
 
+Zoom is worth a note of its own: it does not merely fail, it **hangs first**. The
+postinstall script launches `ZoomUpdater`, which waits on a GUI session that will
+never appear, so `installer` sits at 0% CPU for minutes with no output before
+erroring. `certify.sh` skips it with `HOMEBREW_BUNDLE_CASK_SKIP=zoom` to buy that
+time back; `verify.sh` still lists it as unverified, so it cannot be forgotten.
+
 Beyond that: anything hardware-bound (Touch ID, the printer utility) and any
 cask whose installer wants a system extension may behave differently in a VM
 than on metal. Certification proves the *procedure*, not every pixel of the
