@@ -140,13 +140,59 @@ if [ -f "$BREWFILE" ]; then
                  brew bundle check --file="$BREWFILE" --verbose 2>&1)"
   fi
 
+  # Entries an Apple Silicon VM structurally cannot satisfy. Named individually,
+  # with the reason, rather than hidden behind a blanket "VM mode" -- an
+  # exception you cannot enumerate is indistinguishable from a bug you have
+  # stopped noticing.
+  #
+  #   zoom            its installer package's postinstall scripts fail in a VM
+  #   postgresql@17   `restart_service` needs a GUI launchd domain (gui/501),
+  #                   which does not exist over SSH: launchctl exits 125 with
+  #                   "Domain does not support specified action"
+  #
+  # Both install and work on real hardware; neither can be proven here.
+  vm_exceptions='zoom postgresql@17'
+
   if printf '%s\n' "$check_out" | grep -q "dependencies are satisfied"; then
     ok "brew bundle check satisfied$([ "$SKIP_MAS" = 1 ] && echo " (excluding $mas_count App Store apps)")"
   else
     missing_list="$(printf '%s\n' "$check_out" | grep '^→' | sed 's/^→ //')"
-    missing_n="$(printf '%s\n' "$missing_list" | grep -c . || true)"
-    bad "brew bundle check: $missing_n entr$([ "$missing_n" = 1 ] && echo y || echo ies) unsatisfied"
-    printf '%s\n' "$missing_list" | head -10 | sed 's/^/          /'
+
+    if [ "$SKIP_MAS" = "1" ]; then
+      excepted=""
+      remaining=""
+      while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        hit=0
+        for e in $vm_exceptions; do
+          case "$line" in *"$e"*) hit=1 ;; esac
+        done
+        if [ "$hit" = 1 ]; then
+          excepted="$excepted$line
+"
+        else
+          remaining="$remaining$line
+"
+        fi
+      done <<EOF
+$missing_list
+EOF
+      missing_list="$(printf '%s' "$remaining")"
+      excepted_n="$(printf '%s' "$excepted" | grep -c . || true)"
+      if [ "${excepted_n:-0}" -gt 0 ]; then
+        caution "$excepted_n entr$([ "$excepted_n" = 1 ] && echo y || echo ies) cannot work in a VM" \
+                "verify these on real hardware"
+        printf '%s' "$excepted" | sed 's/^/          /'
+      fi
+    fi
+
+    missing_n="$(printf '%s' "$missing_list" | grep -c . || true)"
+    if [ "${missing_n:-0}" -eq 0 ]; then
+      ok "brew bundle check satisfied$([ "$SKIP_MAS" = 1 ] && echo " (excluding App Store apps and VM-incompatible entries)")"
+    else
+      bad "brew bundle check: $missing_n entr$([ "$missing_n" = 1 ] && echo y || echo ies) unsatisfied"
+      printf '%s' "$missing_list" | head -10 | sed 's/^/          /'
+    fi
   fi
 
   if [ "$SKIP_MAS" = "1" ] && [ "$mas_count" -gt 0 ]; then

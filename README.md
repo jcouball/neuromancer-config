@@ -741,6 +741,15 @@ itself so there is no second list to drift. `verify.sh` reports them as a
 warning rather than silently passing over them. **They must be checked on real
 hardware.**
 
+Two more entries turned out to be structurally impossible in a VM, and are
+named individually in `verify.sh` rather than waved away — an exception you
+cannot enumerate is indistinguishable from a bug you have stopped noticing:
+
+| Entry | Why a VM cannot do it |
+| --- | --- |
+| **zoom** | The installer package's postinstall scripts fail. `installer` reports "An error occurred while running scripts from the package". It installs fine on real hardware. |
+| **postgresql@17** | `restart_service` needs a GUI launchd domain. Over SSH there is no Aqua session, so `launchctl enable gui/501/homebrew.mxcl.postgresql@17` exits 125 with "Domain does not support specified action". |
+
 Beyond that: anything hardware-bound (Touch ID, the printer utility) and any
 cask whose installer wants a system extension may behave differently in a VM
 than on metal. Certification proves the *procedure*, not every pixel of the
@@ -954,6 +963,13 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   emitting a bare `sudo: a password is required` from a script you did not know
   was running. A failed script stays pending in `chezmoi status`, so it retries
   — it does not silently record success.
+- **`chezmoi init` does not pull on an already-initialised machine.** Running
+  `chezmoi init --apply <repo>` where `~/.local/share/chezmoi` already exists
+  applies the checkout that is *already there*, so a fix you have just pushed is
+  silently not used. It cost a whole diagnostic cycle: the run behaved exactly
+  as before, because it was running exactly the code as before. Use `chezmoi
+  update`, which pulls and then applies. A real rebuild is unaffected — a fresh
+  machine has nothing to be stale.
 - **`chezmoi re-add` writes to the chezmoi source directory**, which is
   `~/.local/share/chezmoi`, *not* whatever clone of this repo you happen to be
   editing in. Keeping a second working copy (say `~/github/jcouball/`) means
