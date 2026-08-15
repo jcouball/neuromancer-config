@@ -18,5 +18,30 @@
 */ -}}
 {{- $computerName := promptStringOnce . "computerName" "Computer name" (output "scutil" "--get" "ComputerName" | trim) -}}
 
+# chezmoi's own settings live here too, not only in [data].
+#
+# These were found the hard way. This machine had a hand-written
+# ~/.config/chezmoi/chezmoi.yaml carrying both of them, which the repo knew
+# nothing about -- so six certification runs produced a VM without them, and a
+# real rebuild would have lost them silently. They are settings you would only
+# miss the first time you ran `chezmoi diff` on a plist and got binary noise.
+#
+# chezmoi refuses to start when it finds two config files, so the yaml has to
+# go: `rm ~/.config/chezmoi/chezmoi.yaml`.
+
+# Open files in VS Code, matching git's core.editor.
+[edit]
+    command = "code"
+    args = ["--wait"]
+
+# Render binary plists as XML so `chezmoi diff` is readable rather than a wall
+# of bytes. Nothing managed is a plist today -- iTerm2's was the last one -- but
+# this costs nothing and is exactly the sort of setting that is painful to
+# rediscover the moment a plist comes back.
+[[textconv]]
+    pattern = "**/*.plist"
+    command = "plutil"
+    args = ["-convert", "xml1", "-o", "-"]
+
 [data]
     computerName = {{ $computerName | quote }}
