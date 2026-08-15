@@ -17,6 +17,24 @@
 
 set -euo pipefail
 
+# Never run under `sudo chezmoi apply`.
+#
+# The scripts that need root call `sudo` themselves, for the one command that
+# needs it. Running chezmoi *as* root instead breaks things that quietly matter:
+# Homebrew refuses to run as root at all, so the entire Brewfile step fails, and
+# any file chezmoi writes risks landing in your home directory owned by root.
+#
+# The honest instruction is `sudo -v` first, then a normal `chezmoi apply` --
+# which caches the credential so the sudo calls inside these scripts do not
+# prompt.
+if [ "$(id -u)" -eq 0 ]; then
+  echo "❌ Do not run 'sudo chezmoi apply'." >&2
+  echo "   Homebrew refuses to run as root, and chezmoi may write root-owned" >&2
+  echo "   files into your home directory." >&2
+  echo "   Instead:  sudo -v && chezmoi apply" >&2
+  exit 1
+fi
+
 eval "$(/opt/homebrew/bin/brew shellenv)"
 
 # Install what is missing; do not upgrade what is already here.

@@ -1102,8 +1102,16 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   `cargo` lines in the Brewfile, they will be quietly empty. Nothing else in the
   dump is affected — formulae, casks, taps, `vscode` and `mas` are all fine.
 - **Three provisioning scripts need sudo** — 00 (computer name), 01 (Rosetta)
-  and 05 (linking openjdk). Run `chezmoi apply` from an interactive shell so
-  sudo can prompt, or `sudo -v` first. Both scripts now say so rather than
+  and 05 (linking openjdk) — but **never run `sudo chezmoi apply`.** The scripts
+  call `sudo` themselves for the one command that needs it. Running chezmoi *as*
+  root breaks the Brewfile step outright, because Homebrew refuses to run as
+  root, and risks chezmoi writing root-owned files into your home directory.
+  Scripts 00 and 02 now refuse to start as root for that reason. The correct
+  incantation caches the credential first:
+
+  ```bash
+  sudo -v && chezmoi apply -v
+  ``` Both scripts now say so rather than
   emitting a bare `sudo: a password is required` from a script you did not know
   was running. A failed script stays pending in `chezmoi status`, so it retries
   — it does not silently record success.

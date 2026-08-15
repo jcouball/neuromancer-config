@@ -19,6 +19,24 @@
 
 set -euo pipefail
 
+# Never run under `sudo chezmoi apply`.
+#
+# The scripts that need root call `sudo` themselves, for the one command that
+# needs it. Running chezmoi *as* root instead breaks things that quietly matter:
+# Homebrew refuses to run as root at all, so the entire Brewfile step fails, and
+# any file chezmoi writes risks landing in your home directory owned by root.
+#
+# The honest instruction is `sudo -v` first, then a normal `chezmoi apply` --
+# which caches the credential so the sudo calls inside these scripts do not
+# prompt.
+if [ "$(id -u)" -eq 0 ]; then
+  echo "❌ Do not run 'sudo chezmoi apply'." >&2
+  echo "   Homebrew refuses to run as root, and chezmoi may write root-owned" >&2
+  echo "   files into your home directory." >&2
+  echo "   Instead:  sudo -v && chezmoi apply" >&2
+  exit 1
+fi
+
 # chezmoi renders the template below before bash ever sees this file, so the
 # braces are not shell syntax. Every other script here keeps its templating
 # inside comments, which shellcheck ignores; this one cannot, because the value
@@ -54,7 +72,7 @@ fi
 # Needs root. Available unattended only with NOPASSWD or a cached credential.
 if ! sudo -n true 2>/dev/null && [ ! -t 0 ]; then
   echo "❌ Setting the computer name needs sudo, and there is no terminal to prompt on." >&2
-  echo "   Run 'chezmoi apply' from an interactive shell, or 'sudo -v' first." >&2
+  echo "   Run 'sudo -v' first, then 'chezmoi apply' -- NOT 'sudo chezmoi apply'." >&2
   exit 1
 fi
 
