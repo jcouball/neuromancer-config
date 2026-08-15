@@ -1106,15 +1106,20 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   call `sudo` themselves for the one command that needs it. Running chezmoi *as*
   root breaks the Brewfile step outright, because Homebrew refuses to run as
   root, and risks chezmoi writing root-owned files into your home directory.
-  Scripts 00 and 02 now refuse to start as root for that reason. The correct
+  Scripts 00 and 02 refuse to start as root for that reason. The correct
   incantation caches the credential first:
 
   ```bash
   sudo -v && chezmoi apply -v
-  ``` Both scripts now say so rather than
-  emitting a bare `sudo: a password is required` from a script you did not know
-  was running. A failed script stays pending in `chezmoi status`, so it retries
-  — it does not silently record success.
+  ```
+
+- **A failed script stays pending only if it exits non-zero.** Script 02
+  deliberately does not: it reports a failing `brew bundle` and exits 0, so that
+  one bad package cannot abort the whole apply. The cost is that chezmoi records
+  it as done and will not retry until `.Brewfile` changes. That is the trade,
+  and it is why `verify.sh` is the arbiter rather than `chezmoi status` — a clean
+  status has already, once, sat over a Brewfile step that never ran.
+
 - **A changed `.chezmoi.toml.tmpl` needs `chezmoi init`, not `chezmoi apply`.**
   chezmoi says so itself — *"config file template has changed, run chezmoi init
   to regenerate config file"* — and until you do, any template reading a new key
