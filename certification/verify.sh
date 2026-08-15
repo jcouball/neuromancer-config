@@ -26,15 +26,32 @@ SKIP_MAS="${SKIP_MAS:-0}"
 PASS=0
 FAIL=0
 WARNED=0
+EXCLUDED=0
 
 green() { printf '\033[32m%s\033[0m' "$*"; }
 red()   { printf '\033[31m%s\033[0m' "$*"; }
 amber() { printf '\033[33m%s\033[0m' "$*"; }
+dim()   { printf '\033[2m%s\033[0m' "$*"; }
 
 ok()      { PASS=$((PASS + 1));   printf '  %s  %s\n' "$(green PASS)" "$1"; }
 bad()     { FAIL=$((FAIL + 1));   printf '  %s  %s\n' "$(red FAIL)" "$1"; [ $# -gt 1 ] && printf '        %s\n' "$2"; return 0; }
 caution() { WARNED=$((WARNED + 1)); printf '  %s  %s\n' "$(amber WARN)" "$1"; [ $# -gt 1 ] && printf '        %s\n' "$2"; return 0; }
 section() { printf '\n\033[1m%s\033[0m\n' "$1"; }
+
+# SKIP is not WARN, and the difference is the whole point.
+#
+# WARN means something unexpected: look at it. SKIP means a known, declared,
+# permanent limitation of running in a VM -- it will be reported on every run,
+# for ever, and there is nothing to be done about it here.
+#
+# Reporting those as warnings teaches you to skim past warnings, which is the
+# failure this repo already describes for chezmoi drift: constant false drift
+# trains you to ignore the one command that tells you the repo is honest. A
+# warning you are expected to ignore devalues every warning beside it.
+#
+# The exclusion list is declared in one place, deliberately. Anything not on it
+# that fails is a FAIL -- nothing can quietly promote itself to "expected".
+excluded() { EXCLUDED=$((EXCLUDED + 1)); printf '  %s  %s\n' "$(dim SKIP)" "$1"; [ $# -gt 1 ] && printf '        %s\n' "$(dim "$2")"; return 0; }
 
 [ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
 export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
@@ -180,8 +197,8 @@ EOF
       missing_list="$(printf '%s' "$remaining")"
       excepted_n="$(printf '%s' "$excepted" | grep -c . || true)"
       if [ "${excepted_n:-0}" -gt 0 ]; then
-        caution "$excepted_n entr$([ "$excepted_n" = 1 ] && echo y || echo ies) cannot work in a VM" \
-                "verify these on real hardware"
+        excluded "$excepted_n Brewfile entr$([ "$excepted_n" = 1 ] && echo y || echo ies) cannot work in a VM" \
+                 "structural, not drift -- verify on real hardware"
         printf '%s' "$excepted" | sed 's/^/          /'
       fi
     fi
@@ -196,8 +213,8 @@ EOF
   fi
 
   if [ "$SKIP_MAS" = "1" ] && [ "$mas_count" -gt 0 ]; then
-    caution "$mas_count App Store apps not verified" \
-            "Apple Silicon VMs cannot sign into the Mac App Store; check these on real hardware"
+    excluded "$mas_count App Store apps not verified" \
+             "no App Store sign-in exists in any Apple Silicon VM -- verify on real hardware"
   fi
 else
   bad "~/.Brewfile missing -- cannot check packages"
@@ -423,14 +440,18 @@ done
 # --- Summary ---------------------------------------------------------------
 
 printf '\n\033[1m%s\033[0m\n' "Summary"
-printf '  %s passed, %s failed, %s warnings\n' \
-  "$(green "$PASS")" "$([ "$FAIL" -gt 0 ] && red "$FAIL" || echo 0)" "$(amber "$WARNED")"
+printf '  %s passed, %s failed, %s warnings, %s excluded\n' \
+  "$(green "$PASS")" \
+  "$([ "$FAIL" -gt 0 ] && red "$FAIL" || echo 0)" \
+  "$([ "$WARNED" -gt 0 ] && amber "$WARNED" || echo 0)" \
+  "$(dim "$EXCLUDED")"
 
 # The sentinel below is the last thing this script does, and certify.sh requires
 # it. A verification that dies partway through must never be mistaken for one
 # that passed -- exactly the "reported success, did nothing" failure that this
 # whole exercise exists to catch.
-printf 'VERIFY-COMPLETE %s passed %s failed %s warnings\n' "$PASS" "$FAIL" "$WARNED"
+printf 'VERIFY-COMPLETE %s passed %s failed %s warnings %s excluded\n' \
+  "$PASS" "$FAIL" "$WARNED" "$EXCLUDED"
 
 if [ "$FAIL" -gt 0 ]; then
   printf '%s\n' "$(red 'Verification failed.')"

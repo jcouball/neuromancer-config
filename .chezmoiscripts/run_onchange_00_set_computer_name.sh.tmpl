@@ -15,7 +15,7 @@
 # run_onchange_ keyed on the name below, so changing it in chezmoi's config
 # re-applies it rather than requiring you to remember the scutil incantation.
 #
-# computerName: {{ .computerName }}
+# computerName: {{ if hasKey . "computerName" }}{{ .computerName }}{{ else }}(unset){{ end }}
 
 set -euo pipefail
 
@@ -23,10 +23,21 @@ set -euo pipefail
 # braces are not shell syntax. Every other script here keeps its templating
 # inside comments, which shellcheck ignores; this one cannot, because the value
 # is the whole point of the script.
+# hasKey, not a bare .computerName. A machine whose chezmoi config predates
+# .chezmoi.toml.tmpl has no such key, and chezmoi renders templates with
+# missingkey=error -- so this script did not merely skip, it failed to render at
+# all, and took the whole apply down with it. A fresh install cannot reproduce
+# that, because `chezmoi init` always writes the key. See "What certification
+# cannot cover" in the README.
+#
 # shellcheck disable=SC1083
-WANT={{ .computerName | quote }}
+WANT={{ if hasKey . "computerName" }}{{ .computerName | quote }}{{ else }}""{{ end }}
 
-[ -n "$WANT" ] || { echo ">> No computer name configured; skipping."; exit 0; }
+[ -n "$WANT" ] || {
+  echo ">> No computer name configured; skipping."
+  echo ">> To set one on an existing machine: chezmoi init"
+  exit 0
+}
 
 # LocalHostName cannot contain spaces or most punctuation -- macOS substitutes
 # hyphens. Do the same substitution here rather than letting scutil reject it.

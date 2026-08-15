@@ -864,6 +864,24 @@ never appear, so `installer` sits at 0% CPU for minutes with no output before
 erroring. `certify.sh` skips it with `HOMEBREW_BUNDLE_CASK_SKIP=zoom` to buy that
 time back; `verify.sh` still lists it as unverified, so it cannot be forgotten.
 
+**Certification cannot see upgrade paths at all.** Every run starts from a
+pristine image, so it only ever exercises a *fresh install*. A defect that only
+affects a machine moving from an older state is invisible to it — by
+construction, not by oversight.
+
+That is not hypothetical. Adding `.chezmoi.toml.tmpl` introduced a
+`computerName` key, and script 00 read it directly. On a fresh machine
+`chezmoi init` always writes that key, so six certification runs passed. On this
+Mac, whose chezmoi config predated the template, the key did not exist — and
+chezmoi renders with `missingkey=error`, so the script did not skip, it failed
+to render, and took the whole apply down with it. The script now uses `hasKey`
+and degrades to a no-op.
+
+The general rule: **a from-scratch certification says nothing about migration.**
+Anything that reads state written by an earlier version of this repo needs
+testing on a machine that has that state — which means this one. Run
+`./certification/verify.sh` here after pulling, not just in the VM.
+
 Beyond that: anything hardware-bound (Touch ID, the printer utility) and any
 cask whose installer wants a system extension may behave differently in a VM
 than on metal. Certification proves the *procedure*, not every pixel of the
@@ -1089,6 +1107,11 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   emitting a bare `sudo: a password is required` from a script you did not know
   was running. A failed script stays pending in `chezmoi status`, so it retries
   — it does not silently record success.
+- **A changed `.chezmoi.toml.tmpl` needs `chezmoi init`, not `chezmoi apply`.**
+  chezmoi says so itself — *"config file template has changed, run chezmoi init
+  to regenerate config file"* — and until you do, any template reading a new key
+  fails to render. `chezmoi init` re-prompts for anything unanswered and leaves
+  the rest alone.
 - **`chezmoi init` does not pull on an already-initialised machine.** Running
   `chezmoi init --apply <repo>` where `~/.local/share/chezmoi` already exists
   applies the checkout that is *already there*, so a fix you have just pushed is
