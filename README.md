@@ -680,19 +680,27 @@ throwaway macOS VM, as a user who is not `james`.
 
 | | |
 | --- | --- |
-| Date | 2026-08-14 |
-| Commit | `6ed8da6` |
+| Date | 2026-08-15 |
+| Commit | `0b6a6b3` |
 | Guest | macOS Tahoe 26.6.1, 6 CPU / 8 GB / 100 GB, user `certuser` |
-| Result | **41 passed, 0 failed, 2 warnings** |
+| VM result | **41 passed, 0 failed, 0 warnings, 2 excluded** |
+| Real-hardware result | **41 passed, 0 failed, 0 warnings, 0 excluded** |
 
-Certified twice: first at `4a2974c` (40/0/2), then again at `6ed8da6` after
-`verify.sh` gained the by-name and undeclared-extension checks — a tightened
-check invalidates the badge, so the second run is the one that counts.
+Certification is two halves, and both are recorded above. `certify.sh` proves
+the *procedure* against a machine with nothing on it. `verify.sh` run here,
+without `SKIP_MAS`, proves the three entries a VM structurally cannot reach —
+so nothing is excluded on that side, and nothing is taken on trust.
 
-The warnings are the three things an Apple Silicon VM structurally cannot do —
-the 14 App Store apps, `zoom`, and `postgresql@17`'s service — each named
-individually by `verify.sh` rather than waved away, and each to be checked on
-real hardware.
+Earlier runs: `4a2974c` (40/0/2 warnings, before the checks were split) and
+`6ed8da6` (41/0/2). The count changes as `verify.sh` gains checks; that is
+expected, and is why a tightened check triggers re-certification.
+
+The two exclusions are the three things an Apple Silicon VM structurally cannot
+do — the 14 App Store apps, `zoom`, and `postgresql@17`'s service. They are
+reported as `SKIP`, never `WARN`: a warning you are expected to ignore on every
+run teaches you to ignore warnings, which is the same argument this README makes
+about false chezmoi drift. `WARN` means look at it; `SKIP` means a declared,
+permanent limitation with nothing to be done about it here.
 
 It took six runs. One repo defect was found by the very first bootstrap that
 executed; three more were found once it got further; and four were defects in
@@ -807,6 +815,7 @@ five first-pass failures each, and almost entirely different sets:
 | --- | --- |
 | `4a2974c` | `postgresql@17`, `shellcheck`, `tyriar.sort-lines`, `usernamehw.errorlens`, `vscjava.vscode-java-test` |
 | `6ed8da6` | `postgresql@17`, `shellcheck`, `@github/copilot`, `ms-vscode-remote.remote-containers`, `ms-vscode.extension-test-runner` |
+| `0b6a6b3` | `postgresql@17`, `@github/copilot`, `ms-vscode.remote-server` |
 
 Both times every entry except `postgresql@17` installed cleanly on the serial
 retry. `postgresql@17` is the structural VM limitation, not a race. The retry
