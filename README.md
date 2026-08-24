@@ -506,6 +506,9 @@ dot_homebrew/brew.env              HOMEBREW_NO_ANALYTICS
 dot_pip/pip.conf
 empty_dot_irbrc
 
+dot_claude/settings.json           Claude Code: plugins, model, permission mode
+dot_claude/CLAUDE.md               Claude Code: global communication preferences
+
 .chezmoiscripts/
   run_once_01_install_rosetta.sh.tmpl                Rosetta 2
   run_onchange_after_02_brew_bundle_install.sh.tmpl  everything in .Brewfile
