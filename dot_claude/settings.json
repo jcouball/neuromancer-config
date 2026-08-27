@@ -13,7 +13,8 @@
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "jcouball-writing@jcouball": true,
-    "jcouball-github@jcouball": true
+    "jcouball-github@jcouball": true,
+    "jcouball-marketplace@jcouball": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
