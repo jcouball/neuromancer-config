@@ -9,7 +9,7 @@
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "claude-fable-5[1m]",
+  "model": "fable[1m]",
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "jcouball-writing@jcouball": true,
@@ -30,6 +30,7 @@
       }
     }
   },
+  "effortLevel": "high",
   "theme": "dark",
   "agentPushNotifEnabled": true
 }
