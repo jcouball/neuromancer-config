@@ -238,8 +238,6 @@ cask "silentknight"
 cask "silnite"
 # Team communication and collaboration software
 cask "slack"
-# Control your Sonos system
-cask "sonos"
 # Sync and backup service to Synology NAS drives
 cask "synology-drive"
 # Customizable email client
