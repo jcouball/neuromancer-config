@@ -1,0 +1,37 @@
+{
+  "env": {
+    "ENABLE_PROMPT_CACHING_1H": "1"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "claude-fable-5-1[1m]",
+  "enabledPlugins": {
+    "mattpocock-skills@claude-plugins-official": true,
+    "jcouball-writing@jcouball": true,
+    "jcouball-github@jcouball": true,
+    "jcouball-marketplace@jcouball": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "jcouball": {
+      "source": {
+        "source": "github",
+        "repo": "jcouball/agent-plugins"
+      }
+    }
+  },
+  "effortLevel": "high",
+  "theme": "dark",
+  "agentPushNotifEnabled": true
+}

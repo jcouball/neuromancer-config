@@ -1,5 +1,5 @@
 tap "buo/cask-upgrade"
-tap "cirruslabs/cli"
+tap "cirruslabs/cli", trusted: { formulae: ["tart"] }
 tap "danvergara/tools"
 tap "go-task/tap"
 tap "goreleaser/tap"
@@ -91,6 +91,8 @@ brew "gnu-sed"
 brew "libksba"
 # GNU Privacy Guard (OpenPGP)
 brew "gnupg"
+# Task is a task runner/build tool that aims to be simpler and easier to use
+brew "go-task", link: false
 # Library access to GnuPG
 brew "gpgme"
 # Library to render SVG files using Cairo
@@ -115,6 +117,8 @@ brew "jqp"
 brew "libffi"
 # Postgres C API library
 brew "libpq"
+# Fast, async, resource-friendly link checker
+brew "lychee"
 # Utility for directing compilation
 brew "make"
 # Open-source, cross-platform JavaScript runtime environment
@@ -169,10 +173,6 @@ brew "yamllint"
 brew "zeromq"
 # General-purpose lossless data-compression library
 brew "zlib"
-# Run macOS and Linux VMs on Apple Hardware
-brew "cirruslabs/cli/tart", trusted: true
-# A fast, cross-platform build tool inspired by Make, designed for modern workflows.
-brew "go-task/tap/go-task"
 # Terraform
 brew "hashicorp/tap/terraform"
 # A collection of personal command-line utilities by jcouball
@@ -210,6 +210,8 @@ cask "font-monaspace"
 cask "gitbutler"
 # Native client for GitHub Copilot
 cask "github-copilot-app"
+# A fast, cross-platform build tool inspired by Make, designed for modern workflows.
+cask "go-task/tap/go-task", trusted: true
 # Web browser
 cask "google-chrome"
 # Client for the Google Drive storage service
@@ -236,8 +238,6 @@ cask "silentknight"
 cask "silnite"
 # Team communication and collaboration software
 cask "slack"
-# Control your Sonos system
-cask "sonos"
 # Sync and backup service to Synology NAS drives
 cask "synology-drive"
 # Customizable email client
@@ -313,4 +313,3 @@ vscode "vscjava.vscode-java-test"
 vscode "vscjava.vscode-maven"
 vscode "vscode-icons-team.vscode-icons"
 vscode "yzhang.markdown-all-in-one"
-npm "@github/copilot"
