@@ -1,5 +1,4 @@
 tap "buo/cask-upgrade"
-tap "cirruslabs/cli", trusted: { formulae: ["tart"] }
 tap "danvergara/tools"
 tap "go-task/tap"
 tap "goreleaser/tap"
@@ -8,6 +7,7 @@ tap "hashicorp/tap"
 tap "jcouball/tap"
 tap "minio/stable"
 tap "noahgorstein/tap"
+tap "openai/tools", trusted: true
 tap "romkatv/powerlevel10k"
 # Static analysis and lint tool, for (ba)sh scripts
 brew "shellcheck"
@@ -177,6 +177,8 @@ brew "zlib"
 brew "hashicorp/tap/terraform"
 # A collection of personal command-line utilities by jcouball
 brew "jcouball/tap/scripts"
+# Run macOS and Linux VMs on Apple Hardware
+brew "openai/tools/tart", trusted: true
 # Password manager that keeps all passwords secure behind one password
 cask "1password"
 # Command-line interface for 1Password
