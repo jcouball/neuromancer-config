@@ -10,12 +10,13 @@
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "claude-fable-5-1[1m]",
+  "model": "opus[1m]",
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "jcouball-writing@jcouball": true,
     "jcouball-github@jcouball": true,
-    "jcouball-marketplace@jcouball": true
+    "jcouball-marketplace@jcouball": true,
+    "jcouball-testing@jcouball": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
@@ -31,7 +32,15 @@
       }
     }
   },
-  "effortLevel": "high",
+  "effortLevel": "medium",
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    }
+  },
   "theme": "dark",
   "agentPushNotifEnabled": true
 }
