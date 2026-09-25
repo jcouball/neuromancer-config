@@ -102,12 +102,27 @@ echo ">> Installing Amphetamine Power Protect..."
 sudo installer -pkg "$PKG" -target /
 
 # The package stages the script in /Library and its postinstall moves it with
-# `mv ... ~/Library/...`. Whose ~ that is depends on how the installer was
-# started, so finish the move here if the postinstall put it somewhere else.
-STAGED_FILE="/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt"
-if [ ! -f "$SCRIPT_FILE" ] && [ -f "$STAGED_FILE" ]; then
-  mkdir -p "$(dirname "$SCRIPT_FILE")"
-  sudo mv -f "$STAGED_FILE" "$SCRIPT_FILE"
+# `mv ... ~/Library/...`, running as root. Whose ~ that is depends on how the
+# installer was started: it may be ours, root's, or the move may fail and leave
+# the file staged. Fetch it from whichever place it landed. `sudo test`, because
+# /var/root is readable only by root, so a plain -f cannot see into it.
+if [ ! -f "$SCRIPT_FILE" ]; then
+  for candidate in \
+    "/var/root/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt" \
+    "/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt"; do
+    if sudo test -f "$candidate"; then
+      mkdir -p "$(dirname "$SCRIPT_FILE")"
+      sudo mv -f "$candidate" "$SCRIPT_FILE"
+      break
+    fi
+  done
+fi
+
+# Whichever way the file got here, root moved it, so it is root-owned. Hand it
+# back so it can be edited or replaced, including by a later Power Protect
+# update, without sudo.
+if [ -f "$SCRIPT_FILE" ] && [ ! -O "$SCRIPT_FILE" ]; then
+  sudo chown "$(id -un):$(id -gn)" "$SCRIPT_FILE"
 fi
 
 if [ ! -f "$SCRIPT_FILE" ] || [ ! -f "$SUDOERS_FILE" ]; then
