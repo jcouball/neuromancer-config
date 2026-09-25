@@ -514,6 +514,7 @@ dot_claude/CLAUDE.md               Claude Code: global communication preferences
   run_onchange_after_02_brew_bundle_install.sh.tmpl  everything in .Brewfile
   run_onchange_after_03_asdf_plugin_add.sh.tmpl      plugins, derived from .tool-versions
   run_onchange_after_04_asdf_tool_install.sh.tmpl    the runtimes themselves
+  run_after_06_install_amphetamine_power_protect.sh  Amphetamine Power Protect, laptops only
 
 certification/
   certify.sh                       host side: clone a VM, rebuild it, verify it
