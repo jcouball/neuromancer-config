@@ -506,7 +506,7 @@ dot_homebrew/brew.env              HOMEBREW_NO_ANALYTICS
 dot_pip/pip.conf
 empty_dot_irbrc
 
-dot_claude/modify_settings.json    Claude Code: plugins, permission mode (keeps live model, effort, theme)
+dot_claude/settings.json           Claude Code: plugins, model, permission mode
 dot_claude/CLAUDE.md               Claude Code: global communication preferences
 
 .chezmoiscripts/
@@ -1170,11 +1170,3 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
 - **`chezmoi status` compares file contents only.** It will happily report a
   clean machine that has no Ruby installed. `./certification/verify.sh` is the
   one that looks at outcomes.
-- **`~/.claude/settings.json` is not re-added.** Claude Code writes that file
-  itself, so it is managed by the `dot_claude/modify_settings.json` template,
-  which leaves `model`, `effortLevel` and `theme` as Claude Code set them and
-  replaces every other key. `chezmoi re-add` cannot update a modify template:
-  change the JSON in it with `chezmoi edit ~/.claude/settings.json`. Anything
-  else Claude Code writes there, such as an "always allow" permission or a
-  newly enabled plugin, is dropped on the next apply unless it is added to the
-  template first.
