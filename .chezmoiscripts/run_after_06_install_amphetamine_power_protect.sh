@@ -39,7 +39,41 @@ SIGNING_TEAM="U5SR49N3PT"
 AMPHETAMINE_APP="/Applications/Amphetamine.app"
 MIN_AMPHETAMINE_VERSION="5.3.1"
 
+# The package's postinstall moves the script into place as root, so the file
+# ends up root-owned. Hand it back so it can be edited or replaced, including by
+# a later Power Protect update, without sudo. Its folder too: if sudo kept our
+# HOME, the package's preinstall created it as root. sudo runs only when
+# something needs fixing.
+#
+# When sudo cannot run, or the chown fails (a cancelled or wrong password),
+# warn and carry on rather than fail: a root-owned file does not stop Power
+# Protect working, so it should not fail an apply.
+reclaim_script_ownership() {
+  local path
+  for path in "$(dirname "$SCRIPT_FILE")" "$SCRIPT_FILE"; do
+    if [ -e "$path" ] && [ ! -O "$path" ]; then
+      if ! sudo -n true 2>/dev/null && [ ! -t 0 ]; then
+        warn_not_owned "$path"
+        return 0
+      fi
+      echo ">> Taking ownership of $path"
+      if ! sudo chown "$(id -un):$(id -gn)" "$path"; then
+        warn_not_owned "$path"
+        return 0
+      fi
+    fi
+  done
+}
+
+warn_not_owned() {
+  echo "⚠️  $1 is not owned by you, and taking ownership needs sudo." >&2
+  echo "   Run 'sudo -v', then 'chezmoi apply' -- NOT 'sudo chezmoi apply'." >&2
+}
+
+# Also reclaim ownership when already installed: an install made before this
+# script existed, or by hand, left the file root-owned.
 if [ -f "$SCRIPT_FILE" ] && [ -f "$SUDOERS_FILE" ]; then
+  reclaim_script_ownership
   echo ">> Amphetamine Power Protect is already installed."
   exit 0
 fi
@@ -132,15 +166,7 @@ for candidate in "${STRAY_SCRIPT_FILES[@]}"; do
   fi
 done
 
-# Whichever way the file got here, root moved it, so it is root-owned. Hand it
-# back so it can be edited or replaced, including by a later Power Protect
-# update, without sudo. Its folder too: if sudo kept our HOME, the package's
-# preinstall created it as root.
-for path in "$(dirname "$SCRIPT_FILE")" "$SCRIPT_FILE"; do
-  if [ -e "$path" ] && [ ! -O "$path" ]; then
-    sudo chown "$(id -un):$(id -gn)" "$path"
-  fi
-done
+reclaim_script_ownership
 
 if [ ! -f "$SCRIPT_FILE" ] || [ ! -f "$SUDOERS_FILE" ]; then
   echo "❌ Power Protect install (installer exit $installer_status) did not produce both of its files:" >&2
