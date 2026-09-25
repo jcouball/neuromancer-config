@@ -47,7 +47,8 @@ fi
 # The package refuses to install on a Mac without a battery, or without
 # Amphetamine 5.3.1 or later. Check both first and skip rather than fail: a
 # desktop Mac, or a VM without an App Store login, is a normal case, not an
-# error.
+# error. It also refuses Intel Macs, which is not checked because this repo
+# only supports Apple Silicon.
 if ! pmset -g ps | grep -q "InternalBattery"; then
   echo ">> No internal battery; Amphetamine Power Protect is for laptops only. Skipping."
   exit 0
@@ -98,35 +99,51 @@ if ! pkgutil --check-signature "$PKG" | grep -q "Developer ID Installer: .*($SIG
   exit 1
 fi
 
-echo ">> Installing Amphetamine Power Protect..."
-sudo installer -pkg "$PKG" -target /
-
 # The package stages the script in /Library and its postinstall moves it with
 # `mv ... ~/Library/...`, running as root. Whose ~ that is depends on how the
 # installer was started: it may be ours, root's, or the move may fail and leave
-# the file staged. Fetch it from whichever place it landed. `sudo test`, because
-# /var/root is readable only by root, so a plain -f cannot see into it.
-if [ ! -f "$SCRIPT_FILE" ]; then
-  for candidate in \
-    "/var/root/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt" \
-    "/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt"; do
-    if sudo test -f "$candidate"; then
-      mkdir -p "$(dirname "$SCRIPT_FILE")"
-      sudo mv -f "$candidate" "$SCRIPT_FILE"
-      break
-    fi
-  done
-fi
+# the file staged. These are the two places it can land other than ours.
+STRAY_SCRIPT_FILES=(
+  "/var/root/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt"
+  "/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt"
+)
+
+# Any copy there now is a leftover from an earlier install. Remove it first, so
+# any copy found after the installer runs is from this run and can replace ours
+# without comparing dates, which cannot tell a leftover from an edited copy.
+sudo rm -f "${STRAY_SCRIPT_FILES[@]}"
+
+echo ">> Installing Amphetamine Power Protect..."
+# Do not let a non-zero exit stop the script here. The postinstall's `mv` fails
+# when root's ~/Library/Application Scripts does not exist, which fails the
+# whole install even though both files are on disk. The recovery below and the
+# two-file check at the end decide whether the install worked.
+installer_status=0
+sudo installer -pkg "$PKG" -target / || installer_status=$?
+
+# Fetch the script from wherever it landed, even when our copy exists: a
+# reinstall after only the sudoers file went missing must replace the old
+# script, not leave the new one stranded. `sudo test`, because /var/root is
+# readable only by root, so a plain -f cannot see into it.
+for candidate in "${STRAY_SCRIPT_FILES[@]}"; do
+  if sudo test -f "$candidate"; then
+    mkdir -p "$(dirname "$SCRIPT_FILE")"
+    sudo mv -f "$candidate" "$SCRIPT_FILE"
+  fi
+done
 
 # Whichever way the file got here, root moved it, so it is root-owned. Hand it
 # back so it can be edited or replaced, including by a later Power Protect
-# update, without sudo.
-if [ -f "$SCRIPT_FILE" ] && [ ! -O "$SCRIPT_FILE" ]; then
-  sudo chown "$(id -un):$(id -gn)" "$SCRIPT_FILE"
-fi
+# update, without sudo. Its folder too: if sudo kept our HOME, the package's
+# preinstall created it as root.
+for path in "$(dirname "$SCRIPT_FILE")" "$SCRIPT_FILE"; do
+  if [ -e "$path" ] && [ ! -O "$path" ]; then
+    sudo chown "$(id -un):$(id -gn)" "$path"
+  fi
+done
 
 if [ ! -f "$SCRIPT_FILE" ] || [ ! -f "$SUDOERS_FILE" ]; then
-  echo "❌ Power Protect install did not produce both of its files:" >&2
+  echo "❌ Power Protect install (installer exit $installer_status) did not produce both of its files:" >&2
   echo "   $SCRIPT_FILE" >&2
   echo "   $SUDOERS_FILE" >&2
   exit 1
