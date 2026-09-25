@@ -10,17 +10,32 @@
 #   ~/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt
 #   /private/etc/sudoers.d/amphetamine_PowerProtect
 #
-# run_ rather than run_once_ or run_onchange_: nothing in this repo changes when
-# Power Protect goes missing, so the only reliable trigger is to check on every
-# apply. The check is two file tests; the download happens only when one fails.
+# run_onchange_ keyed on the state of the machine, not the repo: nothing in the
+# repo changes when Power Protect goes missing. The line below records who owns
+# the script, its folder and the sudoers file (or the error when one is
+# missing), and Amphetamine's version. chezmoi re-renders it on every apply and
+# runs this script only when it changes -- a file goes missing, ownership
+# changes, or Amphetamine is installed or updated. A plain run_ script would
+# run, and be listed as pending, on every apply.
+#
+# chezmoi records the line as rendered before the script ran. So when the
+# script changes the state itself, by installing the files or taking ownership
+# of one, the next apply sees a new line: the script shows as pending once more,
+# runs, finds nothing to do, and is then clean until the state changes again.
+#
+# The cost: when the ownership fix below is skipped for want of sudo, the state
+# line does not change, so the script does not retry. The README's "Small
+# gotchas" gives the command that makes it run again.
+#
+# State: {{ output "/bin/sh" "-c" `stat -f '%Su %N' "$HOME/Library/Application Scripts/com.if.Amphetamine" "$HOME/Library/Application Scripts/com.if.Amphetamine/powerProtect.scpt" /private/etc/sudoers.d/amphetamine_PowerProtect 2>&1; defaults read /Applications/Amphetamine.app/Contents/Info.plist CFBundleShortVersionString 2>&1; true` | trim | replace "\n" "; " }}
 #
 # after_ and numbered 06 so it runs once script 02 has installed Amphetamine
 # from the App Store.
 
 set -euo pipefail
 
-# Script 02 has the same check, but it runs only when the Brewfile changes and
-# this script runs on every apply.
+# Script 02 has the same check, but it runs only when the Brewfile changes, and
+# this script can run on an apply where the Brewfile has not.
 if [ "$(id -u)" -eq 0 ]; then
   echo "❌ Do not run 'sudo chezmoi apply'." >&2
   echo "   Power Protect installs into your home directory, and running as root" >&2
