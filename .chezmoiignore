@@ -8,5 +8,6 @@
 **/*.plist.base
 bootstrap.sh
 certification
+CLAUDE.md
 LICENSE.txt
 README.md
