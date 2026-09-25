@@ -1,4 +1,4 @@
-tap "buo/cask-upgrade"
+tap "buo/cask-upgrade", trusted: true
 tap "danvergara/tools"
 tap "go-task/tap"
 tap "goreleaser/tap"
@@ -171,9 +171,9 @@ brew "zeromq"
 # General-purpose lossless data-compression library
 brew "zlib"
 # Terraform
-brew "hashicorp/tap/terraform"
+brew "hashicorp/tap/terraform", trusted: true
 # A collection of personal command-line utilities by jcouball
-brew "jcouball/tap/scripts"
+brew "jcouball/tap/scripts", trusted: true
 # Run macOS and Linux VMs on Apple Hardware
 brew "openai/tools/tart", trusted: true
 # Password manager that keeps all passwords secure behind one password

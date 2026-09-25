@@ -1161,10 +1161,20 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   list --global | head` tells you which file is really being read.
 - **There are two possible `brew.env` locations and both exist here.** The
   managed one, `~/.homebrew/brew.env`, is live (`brew config` confirms
-  `HOMEBREW_NO_REQUIRE_TAP_TRUST: set`). A stale `~/.config/homebrew/brew.env`
-  also exists with the *opposite* tap-trust setting; it is inert only because
-  `XDG_CONFIG_HOME` is unset. Set that variable and the unmanaged file silently
-  takes over.
+  `HOMEBREW_NO_ANALYTICS: set`). A stale, unmanaged `~/.config/homebrew/brew.env`
+  also exists, setting `HOMEBREW_NO_ANALYTICS` and `HOMEBREW_REQUIRE_TAP_TRUST`;
+  it is inert only because `XDG_CONFIG_HOME` is unset. Set that variable and
+  Homebrew reads that file instead, and also looks for `trust.json` in
+  `~/.config/homebrew/`, where there is none, so every third-party tap entry
+  stops loading until it is trusted again.
+- **Formulae, casks and commands from third-party taps must be trusted.**
+  Homebrew refuses to load them otherwise. `brew trust <tap>` (or
+  `--formula`/`--cask`/`--command <name>`) records trust in
+  `~/.homebrew/trust.json`, which chezmoi does not manage; `brew bundle dump`
+  copies it into `.Brewfile` as `trusted: true`, and `brew bundle` on a new
+  machine trusts those entries again. So after `brew install <tap>/<name>`, run
+  `brew trust` before the dump, or the Brewfile line will be written without
+  trust and fail to load on the next machine.
 - **A pty is required to test an interactive shell.** `zsh -ic exit` without one
   cannot enable job control, and powerlevel10k's gitstatus emits six lines of
   alarming and completely meaningless output. `script -q /dev/null zsh -ic exit`
