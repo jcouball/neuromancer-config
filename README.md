@@ -510,10 +510,12 @@ dot_claude/settings.json           Claude Code: plugins, model, permission mode
 dot_claude/CLAUDE.md               Claude Code: global communication preferences
 
 .chezmoiscripts/
+  run_onchange_00_set_computer_name.sh.tmpl          computer, host and local host names
   run_once_01_install_rosetta.sh.tmpl                Rosetta 2
   run_onchange_after_02_brew_bundle_install.sh.tmpl  everything in .Brewfile
   run_onchange_after_03_asdf_plugin_add.sh.tmpl      plugins, derived from .tool-versions
   run_onchange_after_04_asdf_tool_install.sh.tmpl    the runtimes themselves
+  run_onchange_after_05_link_openjdk.sh.tmpl         makes Homebrew's openjdk visible to macOS
   run_after_06_install_amphetamine_power_protect.sh  Amphetamine Power Protect, laptops only
 
 certification/
