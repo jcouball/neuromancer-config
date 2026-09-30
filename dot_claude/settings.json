@@ -8,6 +8,11 @@
     "sessionUrl": false
   },
   "permissions": {
+    "allow": [
+      "Bash(git commit --amend:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(gh pr create:*)"
+    ],
     "defaultMode": "auto"
   },
   "model": "opus[1m]",
@@ -38,7 +43,7 @@
       "effortLevel": "high"
     },
     "claude-opus-5-5": {
-      "effortLevel": "medium"
+      "effortLevel": "high"
     }
   },
   "theme": "dark",
