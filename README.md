@@ -11,10 +11,10 @@ nothing here needs a conditional.
 
 | | |
 | --- | --- |
-| Host | Neuromancer — Apple M2 Max, macOS Tahoe 26.6.1 |
+| Host | Neuromancer — Apple M2 Max, macOS Golden Gate 27.0.1 |
 | Shell | zsh + powerlevel10k |
 | Terminal | Warp (installed by `.Brewfile`; its settings cannot be versioned) |
-| Package manager | Homebrew — 84 formulae, 37 casks, 49 VS Code extensions, 14 App Store apps |
+| Package manager | Homebrew — 83 formulae, 37 casks, 49 VS Code extensions, 14 App Store apps |
 | Runtimes | asdf, 5 tools |
 | Rebuild | **certified** 2026-08-14 on a clean VM, except the App Store layer |
 
@@ -59,7 +59,7 @@ chezmoi init --apply jcouball/neuromancer-config
 ```
 
 Step 3 asks one question — what this machine is called — and then does the rest:
-Rosetta, the Brewfile, the runtimes, every config file, the JDK link.
+the Brewfile, the runtimes, every config file, the JDK link.
 
 **Sign in to iCloud and the App Store first**, if you want the App Store apps.
 They are separate sign-ins and only the second satisfies `mas`. Skipping it
@@ -330,7 +330,6 @@ In order:
 brew update && brew upgrade && brew doctor
 sudo xcode-select --install            # usually needed again
 asdf uninstall ruby 4.0.6 && asdf install    # and likewise python
-pgrep oahd || sudo softwareupdate --install-rosetta --agree-to-license
 ./certification/verify.sh
 ```
 
@@ -341,8 +340,10 @@ pgrep oahd || sudo softwareupdate --install-rosetta --agree-to-license
    and therefore `SDKROOT`, and therefore every new shell until fixed.
 3. **Rebuild the compiled runtimes.** Ruby and Python were built against the old
    SDK and are the most common post-upgrade breakage.
-4. **Rosetta survives**, but `run_once_01` will not reinstall it if it does not —
-   see [Small gotchas](#small-gotchas).
+4. **Rosetta does not survive.** The 26 → 27 upgrade removed it. Nothing this
+   repo installs needs it, so the repo no longer installs it either. Install it
+   by hand only if you add an Intel-only app, and plan to replace that app:
+   macOS 28 keeps only a limited Rosetta meant for older games.
 5. Update the macOS version in the host table at the top of this file.
 6. **Re-certify, and rebuild the base VM.**
 
@@ -399,7 +400,7 @@ When adding something new, that question decides which layer owns it.
 
 "dotfiles" names the mechanism, not the scope, and it is only half true here:
 plenty of what this repo manages is not dot-prefixed, and plenty of it is not a
-file at all — Rosetta, the computer name, the runtimes asdf materialises.
+file at all — the computer name, the runtimes asdf materialises, the JDK link.
 `neuromancer-config` leads with the scope (the machine), matches
 `sophon-config` so the pair reads as one system, and stays tool-agnostic, so it
 survives if chezmoi is ever replaced.
@@ -511,7 +512,6 @@ dot_claude/CLAUDE.md               Claude Code: global communication preferences
 
 .chezmoiscripts/
   run_onchange_00_set_computer_name.sh.tmpl                        computer, host and local host names
-  run_once_01_install_rosetta.sh.tmpl                              Rosetta 2
   run_onchange_after_02_brew_bundle_install.sh.tmpl                everything in .Brewfile
   run_onchange_after_03_asdf_plugin_add.sh.tmpl                    plugins, derived from .tool-versions
   run_onchange_after_04_asdf_tool_install.sh.tmpl                  the runtimes themselves
@@ -844,9 +844,8 @@ booted, automatic updates declined — but rebuilding it later gets a different
 macOS. Record which IPSW a base image was built from if that matters.
 
 What *is* deterministic, and deliberately so: script ordering (explicit
-`after_`, not luck), the base image itself, `run_once` state (every run is a
-fresh clone), and the Rosetta check (`arch -x86_64`, which tests behaviour
-rather than a daemon that comes and goes).
+`after_`, not luck), the base image itself, and chezmoi's script state (every
+run is a fresh clone).
 
 The practical consequence: **certification has a shelf life.** It says the
 procedure worked against the world as it was that day. That is why
@@ -1077,11 +1076,6 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   `HOMEBREW_BUNDLE_NO_UPGRADE=1` when you want to know what is *missing* rather
   than what is merely stale — `verify.sh` does exactly this, or the genuinely
   missing entries drown in a list of things that just want upgrading.
-- **`run_once_` scripts never run again**, so Rosetta will not be reinstalled if
-  it is ever removed. `arch -x86_64 /usr/bin/true` tells you; `verify.sh` checks
-  it. Do **not** use `pgrep oahd` for this: the daemon only runs while something
-  is actively being translated, so it reports "not installed" on a machine that
-  simply has not run an Intel binary since boot.
 - **Script 06 runs only when Power Protect's state changes.** If it skips
   taking ownership of `powerProtect.scpt` because sudo was not available, it
   warns once and does not try again on the next apply. To make it run again,
@@ -1131,9 +1125,10 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
   toolchains and silently records none. If you ever start relying on `go` or
   `cargo` lines in the Brewfile, they will be quietly empty. Nothing else in the
   dump is affected — formulae, casks, taps, `vscode` and `mas` are all fine.
-- **Three provisioning scripts need sudo** — 00 (computer name), 01 (Rosetta)
-  and 05 (linking openjdk) — but **never run `sudo chezmoi apply`.** The scripts
-  call `sudo` themselves for the one command that needs it. Running chezmoi *as*
+- **Three provisioning scripts need sudo** — 00 (computer name), 05 (linking
+  openjdk) and 06 (Power Protect's script) — but **never run
+  `sudo chezmoi apply`.** The scripts call `sudo` themselves for the one command
+  that needs it. Running chezmoi *as*
   root breaks the Brewfile step outright, because Homebrew refuses to run as
   root, and risks chezmoi writing root-owned files into your home directory.
   Scripts 00 and 02 refuse to start as root for that reason. The correct
