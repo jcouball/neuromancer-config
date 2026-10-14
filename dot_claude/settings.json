@@ -11,17 +11,18 @@
     "allow": [
       "Bash(git commit --amend:*)",
       "Bash(git push --force-with-lease:*)",
-      "Bash(gh pr create:*)"
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge *)"
     ],
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
+  "model": "opus",
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "jcouball-writing@jcouball": true,
-    "jcouball-github@jcouball": true,
     "jcouball-marketplace@jcouball": true,
-    "jcouball-testing@jcouball": true
+    "jcouball-testing@jcouball": true,
+    "jcouball-github@jcouball": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
