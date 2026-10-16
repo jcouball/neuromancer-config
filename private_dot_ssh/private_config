@@ -1,12 +1,15 @@
-ForwardAgent yes
-KeepAlive yes
-ServerAliveInterval 60
-StrictHostKeyChecking no
-CASignatureAlgorithms +ssh-rsa
-
-Protocol 2
-AddKeysToAgent yes
-UseKeychain yes
+Host sophon
+  HostName 192.168.0.199
+  User james
+  IdentityFile ~/.ssh/id_ed25519_sophon
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+  ForwardAgent no
+  UseKeychain yes
+  AddKeysToAgent yes
+  ControlMaster auto
+  ControlPath ~/.ssh/cm-%r@%h:%p
+  ControlPersist 10m
 
 Host 192.168.2.1
   User root
@@ -15,3 +18,13 @@ Host 192.168.2.1
 Host 192.168.2.101
   User root
   IdentityFile ~/.ssh/id_rsa_cloudflared_admin
+
+Host *
+  ForwardAgent yes
+  KeepAlive yes
+  ServerAliveInterval 60
+  StrictHostKeyChecking no
+  CASignatureAlgorithms +ssh-rsa
+  Protocol 2
+  AddKeysToAgent yes
+  UseKeychain yes
