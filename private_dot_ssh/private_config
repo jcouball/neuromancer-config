@@ -5,6 +5,9 @@ Host sophon
   IdentitiesOnly yes
   StrictHostKeyChecking accept-new
   ForwardAgent no
+  # sophon runs OpenSSH for Windows 9.5, which offers no post-quantum key
+  # exchange. Accepted on the LAN; this silences only that warning.
+  WarnWeakCrypto no-pq-kex
   UseKeychain yes
   AddKeysToAgent yes
   ControlMaster auto
