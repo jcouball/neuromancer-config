@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# Remove Homebrew's quarantine flag from Warp.
+#
+# Homebrew quarantines every cask it installs, and Warp ships its notarization
+# ticket on the DMG rather than the app, so the first launch after an install or
+# upgrade often fails Gatekeeper with "Apple could not verify Warp is free of
+# malware". Homebrew removed `--no-quarantine` in version 6, so the flag has to
+# be cleared after the fact.
+#
+# Called from two places, so both install paths are covered: script 02 after
+# `brew bundle`, and topgrade's post_commands after a cask upgrade.
+#
+# The flag is removed only when Homebrew manages the warp cask and the bundle's
+# code signature is intact. The Caskroom directory is what `brew list --cask`
+# checks; testing it directly needs no Ruby and cannot confuse a broken
+# Homebrew with an unmanaged copy. It proves Homebrew installed the cask, not
+# that the copy in /Applications is the one it checksummed: a copy of Warp from
+# a browser or a dragged-in DMG keeps the cask listed. codesign catches a
+# bundle that has been altered since it was signed; it does not check who
+# signed it. The flag itself can't tell the cases apart: Homebrew copies the
+# download's flag onto the app, and that flag usually has an empty agent name.
+#
+# Prints a line when it removes the flag or leaves one in place, and nothing
+# when there is no flag.
+#
+# Exit 1 means the script could not check or clear the flag; exit 0 means it
+# did, or checked and chose to leave the flag.
+#
+# /bin/sh, not whatever $SHELL is: topgrade runs post_commands with `$SHELL -c`.
+
+app=/Applications/Warp.app
+caskroom=/opt/homebrew/Caskroom/warp
+
+fail_manual() {
+  echo "$1" >&2
+  echo "Fix the permissions or ownership of the files named above, then run:" >&2
+  echo "  xattr -drs com.apple.quarantine $app" >&2
+  exit 1
+}
+
+[ -d "$app" ] || exit 0
+
+# Homebrew flags every file in the bundle, so look past the top level: a nested
+# file left flagged by an earlier failed run still needs clearing. find's exit
+# status is checked separately: a directory it cannot read would otherwise look
+# like no flag.
+flagged=$(find "$app" -xattrname com.apple.quarantine -print -quit)
+[ $? -eq 0 ] || fail_manual "Could not check $app for the quarantine flag."
+[ -n "$flagged" ] || exit 0
+
+if [ ! -d "$caskroom" ]; then
+  echo "Left the quarantine flag on $app: Homebrew does not manage this copy"
+  echo "If you trust this copy, clear it with:"
+  echo "  xattr -drs com.apple.quarantine $app"
+  exit 0
+fi
+
+if ! codesign --verify --deep --strict "$app" 2>/dev/null; then
+  echo "Left the quarantine flag on $app: its code signature is missing or broken"
+  echo "Reinstall it, then run this script again:"
+  echo "  brew reinstall --cask warp && ~/.local/bin/clear-warp-quarantine"
+  exit 0
+fi
+
+# -s clears the flag on symlinks themselves as well as on what they point to;
+# the DMG copy flags the links too, and without -s they would stay flagged.
+if xattr -drs com.apple.quarantine "$app"; then
+  echo "Removed the quarantine flag from $app"
+else
+  fail_manual "Could not remove the quarantine flag from $app."
+fi
