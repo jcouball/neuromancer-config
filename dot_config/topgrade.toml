@@ -29,3 +29,11 @@ only = [
 # However, while these risks are possible, they haven't impacted me yet.
 
 greedy_cask = true
+
+# Commands to run after all steps; these are not filtered by `only`.
+[post_commands]
+# Clear the quarantine flag Homebrew puts on Warp, which otherwise makes the
+# first launch after an upgrade fail Gatekeeper. The script explains why, and is
+# shared with script 02, which covers the first install. topgrade always prints
+# the name as a header; the script adds a line only when Warp is quarantined.
+"Warp quarantine check" = "\"$HOME/.local/bin/clear-warp-quarantine\""

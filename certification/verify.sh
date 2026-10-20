@@ -404,6 +404,21 @@ section "Terminal"
 
 if [ -d "/Applications/Warp.app" ]; then
   ok "Warp installed"
+  # A WARN, not a FAIL: Warp is installed, and one command clears the flag.
+  # Seen when Warp was installed or upgraded outside script 02 and topgrade,
+  # when Homebrew does not manage this copy, or when one of those hooks broke.
+  # Report it rather than clear it here, so a broken hook shows up. Every file
+  # in the bundle is checked, since Homebrew flags them all. find's exit status
+  # is checked separately, as in clear-warp-quarantine: a directory it cannot
+  # read would otherwise pass as "not quarantined".
+  flagged="$(find /Applications/Warp.app -xattrname com.apple.quarantine -print -quit)"
+  if [ $? -ne 0 ]; then
+    caution "Could not check Warp for the quarantine flag" "find failed; see the errors above"
+  elif [ -n "$flagged" ]; then
+    caution "Warp is still quarantined" "run ~/.local/bin/clear-warp-quarantine"
+  else
+    ok "Warp not quarantined"
+  fi
 else
   bad "Warp not installed" "declared as a cask in .Brewfile"
 fi

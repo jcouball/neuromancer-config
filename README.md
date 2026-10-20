@@ -505,6 +505,7 @@ private_dot_ssh/private_config     SSH config; the keys themselves are not manag
 dot_config/topgrade.toml           update policy
 dot_homebrew/brew.env              HOMEBREW_NO_ANALYTICS
 dot_pip/pip.conf
+dot_local/bin/executable_clear-warp-quarantine   clears Homebrew's quarantine flag from Warp
 empty_dot_irbrc
 
 dot_claude/settings.json           Claude Code: plugins, model, permission mode
@@ -1090,6 +1091,24 @@ unreachable objects, so the old commit may remain fetchable by SHA afterwards.
 
   Do not delete the whole `entryState` bucket for this: that reruns every
   `run_onchange_` script, `brew bundle` included.
+- **Warp fails Gatekeeper after a Homebrew install or upgrade.** Homebrew
+  quarantines every cask it installs, and Warp staples its notarization ticket
+  to the DMG rather than the app, so the first launch can fail with "Apple
+  could not verify Warp is free of malware". Homebrew removed `--no-quarantine`
+  in version 6, so the flag has to be cleared afterwards.
+  `~/.local/bin/clear-warp-quarantine` removes it, but only when Homebrew
+  manages Warp and the bundle's code signature verifies. Script 02 runs it
+  after `brew bundle`, and a `post_commands` entry in `topgrade.toml` runs it
+  after each topgrade run; it prints a line when it removes the flag or leaves
+  one in place, and nothing when Warp is not quarantined. After any other
+  install or upgrade (`brew upgrade --cask warp`, `brew reinstall --cask warp`,
+  `brew bundle --file="$HOME/.Brewfile"` with `HOMEBREW_BUNDLE_NO_UPGRADE`
+  unset, or a topgrade run interrupted before its post commands), run it by
+  hand. `verify.sh` warns if Warp is still quarantined.
+
+  For a copy of Warp that Homebrew did not install, or where the script is not
+  deployed, clear the flag yourself, but only on a copy you trust:
+  `xattr -drs com.apple.quarantine /Applications/Warp.app`.
 - **Sign in to iCloud and the App Store separately.** They are different
   sign-ins, and only the second one satisfies `mas`.
 - **`brew bundle dump` rewrites the whole file.** Re-add it to chezmoi in the

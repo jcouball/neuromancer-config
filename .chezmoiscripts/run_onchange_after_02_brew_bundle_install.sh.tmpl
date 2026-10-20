@@ -75,6 +75,16 @@ mas_count=$(printf '%s' "$mas_ids" | wc -w | tr -d ' ')
 # A partial failure must not stop the layers below it. What is missing is not
 # hidden: verify.sh runs `brew bundle check` and fails on anything absent, which
 # is the right place to judge -- outcomes, not exit codes.
+# Clear Homebrew's quarantine flag from Warp, the terminal you open next.
+#
+# An EXIT trap, so it runs after whichever install attempt is last: pass 2
+# retries everything still missing, not only the App Store apps, so Warp can
+# install there after failing twice in pass 1. The trap also covers the early
+# exits below. Not fatal, for the same reason pass 1 is not -- a Gatekeeper
+# dialog on first launch is no reason to skip the runtimes. The script is
+# shared with topgrade's post_commands; see it for why the flag is a problem.
+trap '"$HOME/.local/bin/clear-warp-quarantine" || true' EXIT
+
 echo ">> Installing from Brewfile (excluding $mas_count Mac App Store apps)..."
 if HOMEBREW_BUNDLE_MAS_SKIP="$mas_ids" brew bundle --file="$BREWFILE"; then
   echo ">> Brewfile installed."
