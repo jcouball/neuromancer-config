@@ -12,11 +12,13 @@
       "Bash(git commit --amend:*)",
       "Bash(git push --force-with-lease:*)",
       "Bash(gh pr create:*)",
-      "Bash(gh pr merge *)"
+      "Bash(gh pr merge *)",
+      "Bash(gh issue close:*)",
+      "Bash(gh issue comment:*)"
     ],
     "defaultMode": "auto"
   },
-  "model": "opus",
+  "model": "sonnet",
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "jcouball-writing@jcouball": true,
@@ -41,7 +43,7 @@
   "effortLevel": "medium",
   "modelSettings": {
     "claude-fable-5-1": {
-      "effortLevel": "high"
+      "effortLevel": "medium"
     },
     "claude-opus-5-5": {
       "effortLevel": "high"
