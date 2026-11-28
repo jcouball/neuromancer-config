@@ -887,9 +887,24 @@ There is one key for each Mac, named for the Mac it opens:
 | `id_ed25519_neuromancer` | Neuromancer | Neuromancer, and 1Password |
 | `id_ed25519_cortex` | cortex | Neuromancer, and 1Password |
 
-Both private halves are kept on Neuromancer and on no other machine. cortex's
+Both private halves are kept on the primary development machine, which is
+Neuromancer. Another machine is given a copy by hand when it needs to open a
+Mac, and may keep it for as long as it needs the connection. cortex's
 `Host neuromancer` block names `~/.ssh/id_ed25519_neuromancer`, so cortex can
-open Neuromancer only while a copy of that key is put there by hand.
+open Neuromancer once a copy of that key is there.
+[Set up a client](#set-up-a-client) has the steps.
+
+To take a key away from a machine, run `ssh-add -d` on the key file and then
+delete the file. Deleting the file alone is not enough: ssh hands a key to the
+machine's ssh-agent when it is first used (`AddKeysToAgent yes`), and the agent
+keeps its copy for as long as it runs.
+
+Run `ssh-add -d` in a session that can reach the agent the key was given to.
+On a Mac that is a terminal at its desktop. An ssh session into a Mac has no
+agent, so `ssh-add` there answers "Could not open a connection to your
+authentication agent" while the desktop's agent may still hold the key. That
+answer says only that this session has no agent. Delete the file without
+`ssh-add -d` only when the key was never used from a session that has one.
 
 The template picks the line by the machine's name, so each Mac accepts its own
 key and no other. Each copy of a private key should have a passphrase, so a
