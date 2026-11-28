@@ -858,9 +858,9 @@ and [windows-dev-config](https://github.com/jcouball/windows-dev-config) use:
   resolve to an IPv6 address as well.
 
 **The tailnet is the Tailscale network the machines are signed in to.** Each
-has an address in `100.64.0.0/10` and a name there: `cortex`, `sophon`, `rama`.
-The `Host` blocks for cortex and sophon use those names, so `ssh cortex` works
-from anywhere Neuromancer has a network.
+has an address in `100.64.0.0/10` and a name there: `neuromancer`, `cortex`,
+`sophon`, `rama`. The `Host` blocks for neuromancer, cortex and sophon use
+those names, so `ssh cortex` works from anywhere Neuromancer has a network.
 
 - **It needs Tailscale running at both ends,** on the LAN too. With it off at
   either end, name the LAN address: `ssh -o HostName=cortex.local cortex`.
@@ -884,8 +884,12 @@ There is one key for each Mac, named for the Mac it opens:
 
 | Key | Opens | Private half is on |
 | --- | --- | --- |
-| `id_ed25519_neuromancer` | Neuromancer | cortex, and 1Password |
+| `id_ed25519_neuromancer` | Neuromancer | Neuromancer, and 1Password |
 | `id_ed25519_cortex` | cortex | Neuromancer, and 1Password |
+
+Both private halves are kept on Neuromancer and on no other machine. cortex's
+`Host neuromancer` block names `~/.ssh/id_ed25519_neuromancer`, so cortex can
+open Neuromancer only while a copy of that key is put there by hand.
 
 The template picks the line by the machine's name, so each Mac accepts its own
 key and no other. Each copy of a private key should have a passphrase, so a

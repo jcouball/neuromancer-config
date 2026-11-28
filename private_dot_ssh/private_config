@@ -31,14 +31,17 @@ Host rama
   ControlPersist 10m
 
 Host neuromancer
-  HostName neuromancer.local
+  # The name Neuromancer has on the tailnet, so this works away from the LAN.
+  # It needs Tailscale running here and on Neuromancer. Without it, from the
+  # LAN: ssh -o HostName=neuromancer.local neuromancer
+  HostName neuromancer
   User james
   IdentityFile ~/.ssh/id_ed25519_neuromancer
   IdentitiesOnly yes
   StrictHostKeyChecking accept-new
   ForwardAgent no
-  # sshd on the Macs admits IPv4 addresses only (sshd-mac.conf), and a .local
-  # name also resolves to IPv6 link-local addresses.
+  # sshd on the Macs admits IPv4 addresses only (sshd-mac.conf). A tailnet name
+  # has an IPv6 address too, and a .local name resolves to IPv6 link-local ones.
   AddressFamily inet
   UseKeychain yes
   AddKeysToAgent yes
